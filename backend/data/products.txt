@@ -1,0 +1,20 @@
+Rice Meal
+Babyback Ribs Teriyaki - Tender, slow-cooked babyback ribs glazed with a sweet and savory teriyaki sauce, offering a rich fusion of flavors that melt in your mouth. 155
+BBQ Babyback Ribs - Smoky, barbecue-glazed babyback ribs cooked to perfection with a bold, tangy flavor profile that brings out the richness of the meat. 150
+Chicken Wings Teriyaki - Juicy, golden-brown chicken wings coated in a delicious teriyaki glaze, offering a perfect balance of sweetness and umami. 85
+El Pollo Loco - Grilled, marinated chicken with a unique, bold spice blend, served with a side of steamed rice for a satisfying, wholesome meal. 90
+Sizzling Pusit - Fresh squid cooked on a sizzling platter, seasoned with garlic and spices, providing a delightful, tender texture and rich flavor. 100
+
+Pasta
+Baked Macaroni - Classic baked macaroni with a creamy, cheesy sauce, topped with melted cheese and a crispy golden crust for the perfect comfort meal. 70
+Creamy Carbonara - Silky, creamy pasta tossed in a rich sauce made with cream, Parmesan cheese, and crispy bacon bits, for a satisfying, hearty taste. 75
+Kung Pao Chicken Pasta - An Asian-inspired pasta with bold flavors, combining a spicy, tangy sauce with sautéed vegetables and tender noodles. 95
+Pesto Chicken - A flavorful pasta dish featuring grilled chicken and pasta tossed in a vibrant, fresh basil pesto sauce. 75
+Puttanesca - Traditional Italian pasta with a robust, zesty sauce made of tomatoes, olives, capers, and anchovies, bursting with Mediterranean flavors. 85
+
+Sandwich
+Burgels - A playful twist on the classic burger, combining a bagel bun with juicy burger patties and fresh toppings for a unique sandwich experience. 170
+ChocoLoco - A dessert sandwich filled with rich, creamy chocolate and a hint of hazelnut, perfect for satisfying sweet cravings. 90
+Clubhouse - A stacked sandwich loaded with layers of turkey, crispy bacon, fresh lettuce, tomato, and mayonnaise on toasted bread. 129
+Heart Attack - An indulgent sandwich with layers of savory meats, melted cheese, and crispy onions on a soft bun, for the ultimate hearty meal. 115
+Killing Me Softly - A savory sandwich with layers of tender roast beef, melted cheese, and caramelized onions, wrapped in a soft, warm bun for a comforting bite. 200
