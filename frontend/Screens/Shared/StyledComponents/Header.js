@@ -1,28 +1,47 @@
 import React from 'react';
 import { StyleSheet, View, TextInput, TouchableOpacity, StatusBar, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
-const Header = ({ isScrolled }) => {
+const Header = ({ isScrolled, onSearchPress }) => {
+  const navigation = useNavigation();
+
+  const handleSearchPress = () => {
+    if (onSearchPress) {
+      onSearchPress();
+    } else {
+      navigation.navigate('Search');
+    }
+  };
+
   return (
     <Animated.View style={[
       styles.searchContainer,
       isScrolled && styles.searchContainerScrolled
     ]}>
-      <View style={[
-        styles.searchWrapper,
-        isScrolled ? styles.searchWrapperScrolled : styles.searchWrapperTransparent
-      ]}>
+      <TouchableOpacity 
+        style={[
+          styles.searchWrapper,
+          isScrolled ? styles.searchWrapperScrolled : styles.searchWrapperTransparent
+        ]}
+        onPress={handleSearchPress}
+      >
         <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search..."
           placeholderTextColor="#666"
+          editable={false}
+          pointerEvents="none"
         />
-      </View>
-      <TouchableOpacity style={[
-        styles.filterButton,
-        isScrolled ? styles.filterButtonScrolled : styles.filterButtonTransparent
-      ]}>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={[
+          styles.filterButton,
+          isScrolled ? styles.filterButtonScrolled : styles.filterButtonTransparent
+        ]}
+        onPress={handleSearchPress}
+      >
         <Ionicons name="filter" size={24} color="#ff9900" />
       </TouchableOpacity>
     </Animated.View>

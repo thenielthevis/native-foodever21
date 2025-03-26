@@ -3,6 +3,7 @@ import { StyleSheet, View, Image, Text, ScrollView, TouchableOpacity, Dimensions
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { listProducts, fetchProductReviews } from '../../Redux/Actions/productActions';
+import Header from '../Shared/StyledComponents/Header';
 
 const ProductDetails = ({ route, navigation }) => {
   const { product } = route.params;
@@ -61,14 +62,7 @@ const ProductDetails = ({ route, navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search..."
-            placeholderTextColor="#666"
-          />
-        </View>
+        <Header isScrolled={true} />
         
         <TouchableOpacity style={styles.cartButton}>
           <Ionicons name="cart-outline" size={24} color="#333" />
@@ -296,7 +290,7 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 40,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#ff9900',
     marginRight: 15,
     flex: 1,
@@ -407,7 +401,6 @@ const styles = StyleSheet.create({
   },
   paymentModes: {
     marginTop: 20,
-    marginBottom: 15,
   },
   paymentTitle: {
     fontSize: 16,
@@ -419,19 +412,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 20,
+    justifyContent: 'space-between',
   },
   paymentMethod: {
     alignItems: 'center',
+    borderColor: '#eee',
+    borderWidth: 1,
+    width: 100,
+    padding: 5,
+    borderRadius: 20,
+    borderColor: 'rgba(94, 94, 94, 0.2)',
   },
   paymentIcon: {
-    width: 40,
-    height: 40,
+    width: 20,
+    height: 20,
     resizeMode: 'contain',
   },
   paymentText: {
     fontSize: 12,
     marginTop: 5,
     color: '#666',
+    fontWeight: 'bold'
   },
   recommendationsSection: {
     marginTop: 25,

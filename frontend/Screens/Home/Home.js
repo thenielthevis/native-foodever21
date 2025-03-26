@@ -176,7 +176,7 @@ const Home = ({ navigation }) => {
                 <Text style={styles.sectionTitle}>Our Dishes</Text>
                 <View style={styles.productsGrid}>
                   {loading ? (
-                    <ActivityIndicator size="large" color="#ff9900" />
+                    <ActivityIndicator size="large" color="#ff9900" style={styles.loadingCircle} />
                   ) : error ? (
                     <Text style={styles.errorText}>{error}</Text>
                   ) : (
@@ -357,6 +357,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
     color: '#ff9900',
+    alignSelf: 'center',
+  },
+  loadingCircle: {
+    marginTop: 20,
     alignSelf: 'center',
   },
   productsGrid: {
