@@ -1,14 +1,8 @@
-import React, { useEffect, useReducer, userEffect, useState } from "react";
-// import "core-js/stable/atob";
-import { jwtDecode } from "jwt-decode"
-import AsyncStorage from '@react-native-async-storage/async-storage'
-
+import React, { useReducer, useState, useEffect } from "react";
 import authReducer from "../Reducers/Auth.reducer";
-import { setCurrentUser } from "../Actions/Auth.actions";
-import AuthGlobal from './AuthGlobal'
+import AuthGlobal from './AuthGlobal';
 
 const Auth = props => {
-    // console.log(props.children)
     const [stateUser, dispatch] = useReducer(authReducer, {
         isAuthenticated: null,
         user: {}
@@ -17,15 +11,10 @@ const Auth = props => {
 
     useEffect(() => {
         setShowChild(true);
-        if (AsyncStorage.jwt) {
-            const decoded = AsyncStorage.jwt ? AsyncStorage.jwt : "";
-            if (setShowChild) {
-                dispatch(setCurrentUser(jwtDecode(decoded)))
-            }
-        }
-        return () => setShowChild(false);
-    }, [])
-
+        return () => {
+            setShowChild(false);
+        };
+    }, []);
 
     if (!showChild) {
         return null;
@@ -43,4 +32,4 @@ const Auth = props => {
     }
 };
 
-export default Auth
+export default Auth;
