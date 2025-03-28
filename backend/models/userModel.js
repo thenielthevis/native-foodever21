@@ -28,6 +28,15 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: null,
     },
+    fcmTokenUpdatedAt: {
+        type: Date,
+        default: null,
+    },
+    fcmTokenStatus: {
+        type: String,
+        enum: ['active', 'inactive'],
+        default: 'inactive',
+    },
     status: {
         type: String,
         enum: ['active', 'inactive'],
@@ -40,6 +49,20 @@ const userSchema = new mongoose.Schema({
         type: String,
     },
 });
+
+// Add a method to update FCM token with timestamp
+userSchema.methods.updateFcmToken = function(token) {
+    this.fcmToken = token;
+    this.fcmTokenUpdatedAt = new Date();
+    this.fcmTokenStatus = 'active';
+    return this.save();
+};
+
+// Add a method to invalidate FCM token
+userSchema.methods.invalidateFcmToken = function() {
+    this.fcmTokenStatus = 'inactive';
+    return this.save();
+};
 
 const User = mongoose.model('User', userSchema);
 

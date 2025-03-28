@@ -16,6 +16,7 @@ const orderRoute = require('./routes/orderRoute');
 // Middleware
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(express.json({ limit: "50mb" }));
+// Update CORS configuration
 app.use(
   cors({
     origin: [
@@ -63,7 +64,7 @@ app.post('/api/v1/send-notification', async (req, res) => {
 app.use('/api/v1', products);
 app.use('/api/v1', orderListRoutes);
 app.use('/api/v1', orderRoutes);
-app.use('/api/auth', authRoute);
+app.use('/api/v1/auth', authRoute);
 app.use('/api/v1', orderRoute);
 
 module.exports = app;
