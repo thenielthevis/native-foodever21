@@ -1,4 +1,4 @@
-import { SET_CURRENT_USER } from "../Actions/Auth.actions"
+import { SET_CURRENT_USER } from "../../Redux/Actions/Auth.actions"
 import isEmpty from "../../assets/common/is-empty"
 
 export default function (state, action) {

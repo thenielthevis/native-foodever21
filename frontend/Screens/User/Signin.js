@@ -5,9 +5,9 @@ import Fontisto from "react-native-vector-icons/Fontisto";
 import { LinearGradient } from 'expo-linear-gradient';
 
 
-// Import axios and baseURL to fix hardcoded URL issue
+// Import axios and API_URL to fix hardcoded URL issue
 import axios from 'axios';
-import baseURL from '../../assets/common/baseurl';
+import { API_URL } from '@env';
 // Replace AsyncStorage with SecureStore
 import * as SecureStore from 'expo-secure-store';
 
@@ -89,7 +89,7 @@ const Signin = ({ navigation }) => {
       // Make direct axios call to your backend
       try {
         const backendResponse = await axios.post(
-          `${baseURL}auth/login`, 
+          `${API_URL}auth/login`, 
           {
             email: user.email,
             uid: user.uid
@@ -198,7 +198,7 @@ const Signin = ({ navigation }) => {
       // Call backend to synchronize user data
       try {
         const backendResponse = await axios.post(
-          `${baseURL}auth/login`, 
+          `${API_URL}auth/login`, 
           {
             email: user.email,
             uid: user.uid

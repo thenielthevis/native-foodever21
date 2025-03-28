@@ -2,7 +2,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { registerPushNotificationToken } from '../Context/Actions/Auth.actions';
+import { registerPushNotificationToken } from '../Redux/Actions/Auth.actions';
 
 // Configure how notifications appear when the app is in the foreground
 Notifications.setNotificationHandler({

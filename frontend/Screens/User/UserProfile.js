@@ -15,8 +15,8 @@ import { auth } from "../../firebaseConfig";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomNav from '../Shared/StyledComponents/BottomNav';
-import { getUserProfile, logoutUser } from "../../Context/Actions/Auth.actions";
-import { useUser } from '../../Context/Store/AuthGlobal';
+import { getUserProfile, logoutUser } from "../../Redux/Actions/Auth.actions";
+import { useUser } from '../../Redux/Store/AuthGlobal';
 import { useFocusEffect } from '@react-navigation/native';
 
 // Color palette

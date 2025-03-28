@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
 import store from './Redux/Store/productStore';
 // Import the UserProvider
-import { UserProvider } from './Context/Store/AuthGlobal';
+import { UserProvider } from './Redux/Store/AuthGlobal';
 import Home from './Screens/Home/Home';
 import ProductDetails from './Screens/Product/ProductDetails';
 import Search from './Screens/Search/Search';

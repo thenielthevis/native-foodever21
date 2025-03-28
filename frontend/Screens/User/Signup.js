@@ -24,7 +24,7 @@ import * as SecureStore from 'expo-secure-store'; // Import SecureStore instead 
 // Backend related imports
 import axios from 'axios';
 // Remove AsyncStorage import
-import baseURL from '../../assets/common/baseurl';
+import { API_URL } from '@env';
 
 // Import the custom loading component for the food-themed loading animation
 import FoodLoadingIndicator from '../../Components/FoodLoadingIndicator';
@@ -220,7 +220,7 @@ const Signup = () => {
         type: 'image/jpeg',
       });
       
-      const response = await fetch(`${baseURL}auth/upload-avatar`, {
+      const response = await fetch(`${API_URL}auth/upload-avatar`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -284,7 +284,7 @@ const Signup = () => {
         
         try {
           // Step 6: Call your backend API
-          const response = await axios.post(`${baseURL}auth/signup`, userData, {
+          const response = await axios.post(`${API_URL}auth/signup`, userData, {
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',

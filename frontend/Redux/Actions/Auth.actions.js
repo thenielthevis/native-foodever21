@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store'; // Add SecureStore import
 import { auth } from "../../firebaseConfig"
 import axios from 'axios';
 // Fix the import path to use the correct relative path
-import baseURL from '../../assets/common/baseurl';
+import { API_URL } from '@env';
 import { updateProfile } from 'firebase/auth';
 
 // Use optional import for Toast to prevent crashes if the module is missing
@@ -95,7 +95,7 @@ export const registerPushNotificationToken = async (token) => {
     
     // Send FCM token to backend
     const response = await axios.post(
-      `${baseURL}auth/update-fcm-token`, 
+      `${API_URL}auth/update-fcm-token`, 
       { fcmToken: token },
       {
         headers: {
@@ -131,7 +131,7 @@ export const unregisterPushNotificationToken = async () => {
     
     // Remove FCM token from backend
     const response = await axios.delete(
-      `${baseURL}auth/remove-fcm-token`,
+      `${API_URL}auth/remove-fcm-token`,
       {
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -186,7 +186,7 @@ const loginUserWithBackend = async (firebaseUser) => {
     
     // First check if user exists by directly attempting to get user data
     try {
-      const meResponse = await axios.get(`${baseURL}auth/me`, {
+      const meResponse = await axios.get(`${API_URL}auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -206,7 +206,7 @@ const loginUserWithBackend = async (firebaseUser) => {
         });
         
         // After successful registration, try to get user data again
-        const afterRegisterResponse = await axios.get(`${baseURL}auth/me`, {
+        const afterRegisterResponse = await axios.get(`${API_URL}auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
@@ -217,7 +217,7 @@ const loginUserWithBackend = async (firebaseUser) => {
         return afterRegisterResponse.data;
       } catch (registrationError) {
         // If registration fails, try login as a last resort
-        const loginResponse = await axios.post(`${baseURL}auth/login`, userData, {
+        const loginResponse = await axios.post(`${API_URL}auth/login`, userData, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
@@ -264,7 +264,7 @@ const registerUserWithBackend = async (userData) => {
       console.error('Error getting Firebase token:', tokenError);
     }
     
-    const response = await axios.post(`${baseURL}auth/signup`, completeUserData, {
+    const response = await axios.post(`${API_URL}auth/signup`, completeUserData, {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -324,7 +324,7 @@ const getCurrentUser = async () => {
     
     try {
       // Try to fetch user from backend with proper error handling
-      const response = await axios.get(`${baseURL}auth/me`, {
+      const response = await axios.get(`${API_URL}auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -351,7 +351,7 @@ const getCurrentUser = async () => {
             await saveToken(token);
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            const secondAttemptResponse = await axios.get(`${baseURL}auth/me`, {
+            const secondAttemptResponse = await axios.get(`${API_URL}auth/me`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json',
@@ -501,7 +501,7 @@ export const updateUserProfile = async (userData) => {
     const token = await firebaseUser.getIdToken(true);
     await saveToken(token);
     
-    const response = await axios.put(`${baseURL}auth/updateUser`, requestData, {
+    const response = await axios.put(`${API_URL}auth/updateUser`, requestData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json',

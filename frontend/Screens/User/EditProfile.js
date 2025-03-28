@@ -14,9 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { updateUserProfile } from '../../Context/Actions/Auth.actions';
+import { updateUserProfile } from '../../Redux/Actions/Auth.actions';
 import axios from 'axios';
-import baseURL from '../../assets/common/baseurl';
+import { API_URL } from '@env';
 import { auth } from '../../firebaseConfig';
 
 const EditProfile = ({ route, navigation }) => {
@@ -77,7 +77,7 @@ const EditProfile = ({ route, navigation }) => {
       const token = await firebaseUser.getIdToken(true);
       
       const uploadResponse = await axios.post(
-        `${baseURL}auth/upload-avatar`, 
+        `${API_URL}auth/upload-avatar`, 
         formData, 
         {
           headers: {
