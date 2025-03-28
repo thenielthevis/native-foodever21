@@ -18,8 +18,15 @@ const BottomNav = ({ navigation, activeRoute }) => {
       <TouchableOpacity style={styles.tab}>
         <Ionicons name="cart-outline" size={24} color="#666" />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.tab}>
-        <Ionicons name="person-outline" size={24} color="#666" />
+      <TouchableOpacity 
+        style={styles.tab} 
+        onPress={() => navigation.navigate('profile')}
+      >
+        <Ionicons 
+          name={activeRoute === 'Profile' ? 'person' : 'person-outline'} 
+          size={24} 
+          color={activeRoute === 'Profile' ? '#ff9900' : '#666'} 
+        />
       </TouchableOpacity>
     </View>
   );

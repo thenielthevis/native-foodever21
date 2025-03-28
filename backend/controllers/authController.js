@@ -8,26 +8,84 @@ exports.signup = async (req, res) => {
   const { username, email, password, firebaseUid, role, status, userImage, cloudinary_id } = req.body;
 
   try {
-      // Hash the password before saving to MongoDB
-      const hashedPassword = await bcrypt.hash(password, 10);
+    console.log('Signup request received for:', email, firebaseUid);
+    
+    // Check if user already exists
+    const existingUser = await User.findOne({ 
+      $or: [{ email }, { firebaseUid }] 
+    });
 
-      // Create a new user document
-      const newUser = new User({
-          username,
-          email,
-          password: hashedPassword, // Save the hashed password
-          firebaseUid,
-          role: role || 'user',
-          status: status || 'active',
-          userImage,
-          cloudinary_id,
+    if (existingUser) {
+      // User already exists, return success instead of error
+      console.log('User already exists, returning existing user data');
+      return res.status(200).json({
+        message: 'User already exists in the system',
+        uid: existingUser.firebaseUid,
+        user: {
+          _id: existingUser._id,
+          email: existingUser.email,
+          username: existingUser.username,
+          role: existingUser.role,
+          status: existingUser.status
+        }
       });
+    }
 
-      await newUser.save();
-      res.status(201).json({ message: 'User registered successfully in MongoDB.' });
+    // Rest of your existing code...
+    console.log('Creating new user in MongoDB and Firestore');
+    
+    // Make sure password is defined before hashing
+    let hashedPassword;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    } else {
+      // Create a secure random password if none provided
+      const randomPassword = Math.random().toString(36).slice(-8);
+      hashedPassword = await bcrypt.hash(randomPassword, 10);
+    }
+
+    // Create user in MongoDB
+    const newUser = new User({
+      username: username || 'User',
+      email,
+      password: hashedPassword, // Use the hashed password
+      firebaseUid,
+      role: role || 'user',
+      status: status || 'active',
+      userImage, // Add the userImage URL
+      cloudinary_id // Add the cloudinary_id for future reference
+    });
+
+    await newUser.save();
+    
+    // Also create a record in Firestore if used
+    if (db) {
+      await db.collection('users').doc(firebaseUid).set({
+        username: username || 'User',
+        email,
+        status: 'active',
+        avatarURL: userImage || null // Store the image URL in Firestore as well
+      });
+    }
+    
+    res.status(201).json({ 
+      message: 'User registered successfully in Firebase and MongoDB.',
+      uid: firebaseUid,
+      user: {
+        _id: newUser._id,
+        email: newUser.email,
+        username: newUser.username,
+        role: newUser.role,
+        status: newUser.status
+      }
+    });
   } catch (error) {
-      console.error('Error saving user to MongoDB:', error.message);
-      res.status(500).json({ message: 'Internal server error', error: error.message });
+    console.error('Error creating user:', error);
+    res.status(500).json({ 
+      message: 'Internal server error', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -102,24 +160,112 @@ exports.login = async (req, res) => {
   }
 };
 
-// Controller function to handle user update
 exports.updateUser = async (req, res) => {
-  const { email, password, username } = req.body;
-  const userId = req.user.uid; // Assuming user ID is available in req.user
+  const { email, password, username, firebaseUid, userImage } = req.body;
+  
   try {
+    console.log('Update user request - received data:', req.body);
+    console.log('Extracted firebaseUid from request body:', firebaseUid);
+    
+    // Use firebaseUid from request body
+    if (!firebaseUid || typeof firebaseUid !== 'string' || firebaseUid.length === 0 || firebaseUid.length > 128) {
+      return res.status(400).json({ 
+        message: 'The uid must be a non-empty string with at most 128 characters.' 
+      });
+    }
+    
+    console.log('Updating user with Firebase UID:', firebaseUid);
+      
+    // Validation
+    const updates = {};
+    const errors = [];
+    
+    // Check if at least one field is provided
+    if (!email && !password && !username && !userImage) {
+      return res.status(400).json({ message: 'At least one field (email, password, username, or userImage) is required' });
+    }
+    
+    // Username validation and update
+    if (username) {
+      if (username.length < 3) {
+        errors.push('Username must be at least 3 characters long');
+      } else {
+        updates.displayName = username;
+      }
+    }
+    
+    // Email validation and update
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        errors.push('Invalid email format');
+      } else {
+        updates.email = email;
+      }
+    }
+    
+    // Password validation and update
+    if (password) {
+      if (password.length < 6) {
+        errors.push('Password must be at least 6 characters long');
+      } else {
+        updates.password = password;
+      }
+    }
+    
+    // Add photoURL to updates if userImage is provided
+    if (userImage) {
+      updates.photoURL = userImage;
+    }
+    
+    // If there are validation errors, return them
+    if (errors.length > 0) {
+      return res.status(400).json({ message: 'Validation failed', errors });
+    }
+    
+    console.log('Updating Firebase user with UID:', firebaseUid);
+    console.log('Updates to apply:', Object.keys(updates));
+    
     // Update user details in Firebase Authentication
-    const userRecord = await admin.auth().updateUser(userId, {
-      email,
-      password,
-      displayName: username,
-    });
+    const userRecord = await admin.auth().updateUser(firebaseUid, updates);
+    
+    // Also update in MongoDB
+    const mongoUser = await User.findOne({ firebaseUid: firebaseUid });
+    if (mongoUser) {
+      if (email) mongoUser.email = email;
+      if (username) mongoUser.username = username;
+      if (userImage) mongoUser.userImage = userImage;
+      await mongoUser.save();
+      console.log('Updated MongoDB user');
+    } else {
+      console.log('MongoDB user not found for UID:', firebaseUid);
+    }
+    
+    // Update in Firestore if needed
+    if (db) {
+      const firestoreUpdates = {};
+      if (email) firestoreUpdates.email = email;
+      if (username) firestoreUpdates.username = username;
+      if (userImage) firestoreUpdates.avatarURL = userImage;
+      
+      if (Object.keys(firestoreUpdates).length > 0) {
+        await db.collection('users').doc(firebaseUid).update(firestoreUpdates);
+        console.log('Updated Firestore user');
+      }
+    }
+    
     // Respond with success message and updated user details
-    res.status(200).json({ message: 'User updated successfully', user: userRecord });
+    res.status(200).json({ 
+      message: 'User updated successfully', 
+      user: userRecord 
+    });
   } catch (error) {
+    console.error('Error updating user:', error);
     // Respond with error message if user update fails
     res.status(400).json({ message: error.message });
   }
 };
+
 
 // Controller function to handle password reset
 exports.resetPassword = async (req, res) => {
@@ -158,69 +304,76 @@ exports.uploadAvatar = [
   }
 ];
 
+// Update the getCurrentUser method:
+
 exports.getCurrentUser = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    // The user is already attached to req.user by the protect middleware
+    const user = req.user;
+    
+    console.log('GET /me - User from protect middleware:', user);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
-
-    const token = authHeader.split(' ')[1];
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    const firebaseUid = decodedToken.uid;
-
-    // Fetch user details from Firestore (Firebase)
-    const userDoc = await db.collection('users').doc(firebaseUid).get();
-
-    if (!userDoc.exists) {
-      return res.status(404).json({ message: "User not found in Firestore" });
+    
+    // Fetch additional Firestore data if needed
+    let firestoreData = {};
+    try {
+      const userDoc = await db.collection('users').doc(user.firebaseUid).get();
+      if (userDoc.exists) {
+        firestoreData = userDoc.data();
+      }
+    } catch (firestoreError) {
+      console.error('Error fetching Firestore data:', firestoreError);
+      // Continue without Firestore data if it fails
     }
-
-    // Fetch user details from MongoDB using Firebase UID
-    const mongoUser = await User.findOne({ firebaseUid });
-
-    if (!mongoUser) {
-      return res.status(404).json({ message: "User not found in MongoDB" });
-    }
-
-    // Merge Firestore and MongoDB data
-    const user = {
-      _id: mongoUser._id, // Include MongoDB ID
-      username: mongoUser.username || userDoc.data().username,
-      email: mongoUser.email || userDoc.data().email,
-      status: mongoUser.status || userDoc.data().status,
-      avatarURL: mongoUser.userImage || userDoc.data().avatarURL,
-      role: mongoUser.role || "guest",
-    };
-
+    
+    // Return combined user data
     res.status(200).json({
-      message: "User retrieved successfully",
-      user,
+      message: 'User retrieved successfully',
+      user: {
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        status: user.status,
+        userImage: user.userImage || firestoreData.avatarURL,
+        // Include other fields as needed
+      }
     });
   } catch (error) {
-    console.error("Error fetching user:", error.message);
-    res.status(500).json({ message: "Failed to fetch user details" });
+    console.error('Error in getCurrentUser:', error);
+    res.status(500).json({ message: 'Failed to fetch user details' });
   }
 };
 
 exports.saveFcmToken = async (req, res) => {
   try {
-    const { userId, fcmToken } = req.body;
+    const { fcmToken } = req.body;
 
-    if (!userId || !fcmToken) {
-      return res.status(400).json({ message: 'User ID and FCM token are required' });
+    if (!fcmToken) {
+      return res.status(400).json({ message: 'FCM token is required' });
     }
 
-    const user = await User.findById(userId);
+    // Get the user from the request (set by the protect middleware)
+    const user = req.user;
+    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Update the user's FCM token with timestamp
     user.fcmToken = fcmToken;
+    user.fcmTokenStatus = 'active';
+    user.fcmTokenUpdatedAt = new Date();
+    
     await user.save();
 
-    res.status(200).json({ message: 'FCM token saved successfully' });
+    res.status(200).json({ 
+      message: 'FCM token saved successfully',
+      tokenStatus: 'active'
+    });
   } catch (error) {
     console.error('Error saving FCM token:', error);
     res.status(500).json({ message: 'Failed to save FCM token' });
@@ -359,13 +512,69 @@ exports.updateFcmToken = async (req, res) => {
           return res.status(404).json({ message: 'User not found' });
       }
 
-      // Update the FCM token in the user model
-      user.fcmToken = fcmToken;
-      await user.save();
+      // Update the FCM token with timestamp and status
+      await user.updateFcmToken(fcmToken);
 
-      return res.status(200).json({ message: 'FCM token updated successfully' });
+      return res.status(200).json({ 
+          message: 'FCM token updated successfully',
+          tokenStatus: 'active',
+          updatedAt: user.fcmTokenUpdatedAt
+      });
   } catch (error) {
       console.error('Error updating FCM token:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.removeFcmToken = async (req, res) => {
+  try {
+      const user = req.user;
+
+      if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Even if token is null, we should update status to inactive
+      user.fcmTokenStatus = 'inactive';
+      await user.save();
+
+      return res.status(200).json({ 
+          message: 'FCM token invalidated successfully' 
+      });
+  } catch (error) {
+      console.error('Error invalidating FCM token:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Add a function to clean up stale tokens (could be run periodically)
+exports.cleanStaleTokens = async (req, res) => {
+  try {
+      // Only allow admins to perform this operation
+      if (req.user.role !== 'admin') {
+          return res.status(403).json({ message: 'Not authorized to perform this action' });
+      }
+      
+      const staleDate = new Date();
+      staleDate.setMonth(staleDate.getMonth() - 1); // Tokens older than 1 month
+      
+      // Find users with active tokens that haven't been updated for a month
+      const result = await User.updateMany(
+          { 
+              fcmTokenStatus: 'active',
+              fcmTokenUpdatedAt: { $lt: staleDate }
+          },
+          {
+              $set: { fcmTokenStatus: 'inactive' }
+          }
+      );
+      
+      return res.status(200).json({ 
+          message: 'Stale tokens cleaned successfully',
+          tokensInvalidated: result.nModified
+      });
+  } catch (error) {
+      console.error('Error cleaning stale tokens:', error);
       return res.status(500).json({ message: 'Internal server error' });
   }
 };

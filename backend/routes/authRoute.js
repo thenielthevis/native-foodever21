@@ -15,7 +15,9 @@ const {
     deleteUser,
     getUsers,
     getAllUsers,
-    updateFcmToken
+    updateFcmToken,
+    removeFcmToken,
+    cleanStaleTokens
 } = require('../controllers/authController');
 
 // Routes
@@ -25,6 +27,8 @@ router.patch('/updateUser', protect, updateUser);
 router.put('/updateUser', protect, updateUser);
 router.post('/resetPassword', protect, resetPassword);
 router.post('/update-fcm-token', protect, updateFcmToken);
+router.delete('/remove-fcm-token', protect, removeFcmToken);
+router.post('/clean-stale-tokens', protect, adminProtect, cleanStaleTokens);
 router.post('/upload-avatar', uploadAvatar);
 router.get('/me', protect, getCurrentUser);
 router.get('/users', getUsers);
