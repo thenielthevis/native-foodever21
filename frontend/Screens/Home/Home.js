@@ -83,23 +83,47 @@ const Home = ({ navigation }) => {
   };
 
   const renderProductImage = (product) => {
-    if (!product.images || product.images.length === 0) {
-      return (
-        <Image
-          source={require('../../assets/Home/placeholder.png')}
-          style={styles.productImage}
-          resizeMode="cover"
-        />
-      );
-    }
-
     const currentIndex = productImageIndexes[product._id] || 0;
     return (
-      <Image
-        source={{ uri: product.images[currentIndex].url }}
-        style={styles.productImage}
-        defaultSource={require('../../assets/Home/placeholder.png')}
-      />
+      <View style={styles.productImageContainer}>
+        {product.discount > 0 && (
+          <View style={styles.discountTagContainer}>
+            <Image
+              source={require('../../assets/Home/discount-tag.png')}
+              style={styles.discountTag}
+            />
+            <Text style={styles.discountText}>{product.discount}%</Text>
+          </View>
+        )}
+        {!product.images || product.images.length === 0 ? (
+          <Image
+            source={require('../../assets/Home/placeholder.png')}
+            style={styles.productImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <Image
+            source={{ uri: product.images[currentIndex].url }}
+            style={styles.productImage}
+            defaultSource={require('../../assets/Home/placeholder.png')}
+          />
+        )}
+      </View>
+    );
+  };
+
+  const renderPrice = (product) => {
+    return (
+      <View style={styles.priceContainer}>
+        {product.discount > 0 ? (
+          <>
+            <Text style={styles.originalPrice}>₱{product.price}</Text>
+            <Text style={styles.discountedPrice}>₱{product.discountedPrice}</Text>
+          </>
+        ) : (
+          <Text style={styles.productPrice}>₱{product.price}</Text>
+        )}
+      </View>
     );
   };
 
@@ -193,7 +217,7 @@ const Home = ({ navigation }) => {
                           <Text style={styles.productDescription} numberOfLines={2}>
                             {product.description}
                           </Text>
-                          <Text style={styles.productPrice}>₱{product.price}</Text>
+                          {renderPrice(product)}
                         </View>
                       </TouchableOpacity>
                     ))
@@ -360,8 +384,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   loadingCircle: {
-    marginTop: 20,
-    alignSelf: 'center',
+    flex: 1,
+    minHeight: 10,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   productsGrid: {
     flexDirection: 'row',
@@ -436,6 +463,49 @@ const styles = StyleSheet.create({
     height: 120,
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
+  },
+  productImageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 120,
+  },
+  discountTagContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  discountTag: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+  },
+  discountText: {
+    position: 'absolute',
+    left: 10,
+    top: 10,
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 8,
+  },
+  originalPrice: {
+    fontSize: 14,
+    color: '#666',
+    textDecorationLine: 'line-through',
+    textDecorationStyle: 'solid',
+  },
+  discountedPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ff9900',
   },
 });
 

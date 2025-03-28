@@ -143,8 +143,8 @@ exports.updateProduct = async (req, res, next) => {
         } else {
             req.body.images = product.images;
         }
-        
 
+        // Update product
         product = await Product.findByIdAndUpdate(req.params.id, req.body, {
             new: true,
             runValidators: true,
@@ -545,4 +545,25 @@ exports.deleteReview = async (req, res) => {
           message: 'Server error',
       });
   }
+};
+
+// Get all discounted products
+exports.getDiscountedProducts = async (req, res) => {
+    try {
+        const products = await Product.find({ 
+            discount: { $gt: 0 },
+            status: 'Available'
+        });
+
+        res.status(200).json({
+            success: true,
+            count: products.length,
+            products
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching discounted products'
+        });
+    }
 };

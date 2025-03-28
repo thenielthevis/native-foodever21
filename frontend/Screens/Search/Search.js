@@ -72,6 +72,21 @@ const Search = ({ navigation }) => {
     setShouldFilter(true);
   };
 
+  const renderProductPrice = (product) => {
+    return (
+      <View style={styles.priceContainer}>
+        {product.discount > 0 ? (
+          <>
+            <Text style={styles.originalPrice}>₱{product.price}</Text>
+            <Text style={styles.productPrice}>₱{product.discountedPrice}</Text>
+          </>
+        ) : (
+          <Text style={styles.productPrice}>₱{product.price}</Text>
+        )}
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" />
@@ -168,17 +183,28 @@ const Search = ({ navigation }) => {
               key={product._id}
               style={styles.productCard}
               onPress={() => navigation.navigate('ProductDetails', { product })}>
-              <Image
-                source={
-                  product.images && product.images[0]
-                    ? { uri: product.images[0].url }
-                    : require('../../assets/Home/placeholder.png')
-                }
-                style={styles.productImage}
-              />
+              <View style={styles.productImageContainer}>
+                {product.discount > 0 && (
+                  <View style={styles.discountTagContainer}>
+                    <Image
+                      source={require('../../assets/Home/discount-tag.png')}
+                      style={styles.discountTag}
+                    />
+                    <Text style={styles.discountText}>{product.discount}%</Text>
+                  </View>
+                )}
+                <Image
+                  source={
+                    product.images && product.images[0]
+                      ? { uri: product.images[0].url }
+                      : require('../../assets/Home/placeholder.png')
+                  }
+                  style={styles.productImage}
+                />
+              </View>
               <View style={styles.productInfo}>
                 <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.productPrice}>₱{product.price}</Text>
+                {renderProductPrice(product)}
                 <Text style={styles.productCategory}>{product.category}</Text>
               </View>
             </TouchableOpacity>
@@ -281,11 +307,35 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
+  productImageContainer: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+    marginRight: 15,
+  },
+  discountTagContainer: {
+    position: 'absolute',
+    top: -5,
+    left: -5,
+    zIndex: 1,
+  },
+  discountTag: {
+    width: 30,
+    height: 30,
+    resizeMode: 'contain',
+  },
+  discountText: {
+    position: 'absolute',
+    left: 7,
+    top: 7,
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   productImage: {
     width: 80,
     height: 80,
     borderRadius: 8,
-    marginRight: 15,
   },
   productInfo: {
     flex: 1,
@@ -295,6 +345,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  originalPrice: {
+    fontSize: 14,
+    color: '#666',
+    textDecorationLine: 'line-through',
+    textDecorationStyle: 'solid',
   },
   productPrice: {
     fontSize: 14,

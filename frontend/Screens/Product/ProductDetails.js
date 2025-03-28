@@ -50,6 +50,67 @@ const ProductDetails = ({ route, navigation }) => {
     setCurrentImageIndex(currentIndex);
   };
 
+  const renderPrice = () => {
+    return (
+      <View style={styles.priceContainer}>
+        {product.discount > 0 ? (
+          <>
+            <Text style={styles.originalPrice}>₱{product.price}</Text>
+            <Text style={styles.discountedPrice}>₱{product.discountedPrice}</Text>
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountBadgeText}>{product.discount}% OFF</Text>
+            </View>
+          </>
+        ) : (
+          <Text style={styles.price}>₱{product.price}</Text>
+        )}
+      </View>
+    );
+  };
+
+  const renderRecommendedProduct = (item) => {
+    return (
+      <TouchableOpacity 
+        key={item._id}
+        style={styles.recommendedItem}
+        onPress={() => navigation.push('ProductDetails', { product: item })}>
+        <View style={styles.recommendedImageContainer}>
+          {item.discount > 0 && (
+            <View style={styles.recommendedDiscountTag}>
+              <Image
+                source={require('../../assets/Home/discount-tag.png')}
+                style={styles.recommendedDiscountIcon}
+              />
+              <Text style={styles.recommendedDiscountText}>{item.discount}%</Text>
+            </View>
+          )}
+          <Image 
+            source={
+              item.images && item.images[0]?.url
+                ? { uri: item.images[0].url }
+                : require('../../assets/Home/placeholder.png')
+            } 
+            style={styles.recommendedImage}
+            defaultSource={require('../../assets/Home/placeholder.png')}
+          />
+        </View>
+        <Text style={styles.recommendedName} numberOfLines={2}>
+          {item.name}
+        </Text>
+        <View style={styles.recommendedPriceContainer}>
+          {item.discount > 0 ? (
+            <>
+              <Text style={styles.recommendedOriginalPrice}>₱{item.price}</Text>
+              <Text style={styles.recommendedDiscountedPrice}>₱{item.discountedPrice}</Text>
+            </>
+          ) : (
+            <Text style={styles.recommendedPrice}>₱{item.price}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" />
@@ -108,6 +169,9 @@ const ProductDetails = ({ route, navigation }) => {
         <View style={styles.detailsContainer}>
           <Text style={styles.productName}>{product.name}</Text>
           
+          {/* Price information moved here */}
+          {renderPrice()}
+          
           <View style={styles.categoryTag}>
             <Text style={styles.categoryText}>{product.category}</Text>
           </View>
@@ -159,26 +223,7 @@ const ProductDetails = ({ route, navigation }) => {
                 horizontal 
                 showsHorizontalScrollIndicator={false}
                 style={styles.recommendationsScroll}>
-                {similarProducts.map((item) => (
-                  <TouchableOpacity 
-                    key={item._id}
-                    style={styles.recommendedItem}
-                    onPress={() => navigation.push('ProductDetails', { product: item })}>
-                    <Image 
-                      source={
-                        item.images && item.images[0]?.url
-                          ? { uri: item.images[0].url }
-                          : require('../../assets/Home/placeholder.png')
-                      } 
-                      style={styles.recommendedImage}
-                      defaultSource={require('../../assets/Home/placeholder.png')}
-                    />
-                    <Text style={styles.recommendedName} numberOfLines={2}>
-                      {item.name}
-                    </Text>
-                    <Text style={styles.recommendedPrice}>₱{item.price}</Text>
-                  </TouchableOpacity>
-                ))}
+                {similarProducts.map(renderRecommendedProduct)}
               </ScrollView>
             </View>
           )}
@@ -223,7 +268,6 @@ const ProductDetails = ({ route, navigation }) => {
       </ScrollView>
 
       <View style={styles.bottomNav}>
-        <Text style={styles.price}>₱{product.price}</Text>
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={[styles.button, styles.addToCartButton]}>
             <Text style={styles.buttonText}>Add to Cart</Text>
@@ -280,24 +324,44 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   bottomNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#eee',
     padding: 15,
     paddingBottom: 25,
   },
-  price: {
-    fontSize: 40,
-    fontWeight: '600',
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  originalPrice: {
+    fontSize: 24,
+    color: '#666',
+    textDecorationLine: 'line-through',
+    textDecorationStyle: 'solid',
+  },
+  discountedPrice: {
+    fontSize: 32,
+    fontWeight: 'bold',
     color: '#ff9900',
-    marginRight: 15,
-    flex: 1,
+  },
+  discountBadge: {
+    backgroundColor: '#ff9900',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  price: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#ff9900',
   },
   buttonContainer: {
     flexDirection: 'row',
-    flex: 2,
+    gap: 10,
   },
   button: {
     flex: 1,
@@ -451,6 +515,30 @@ const styles = StyleSheet.create({
     marginLeft: 15,
     marginBottom: 10,
   },
+  recommendedImageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 150,
+  },
+  recommendedDiscountTag: {
+    position: 'absolute',
+    top: 0,
+    left: -10,
+    zIndex: 1,
+  },
+  recommendedDiscountIcon: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+  },
+  recommendedDiscountText: {
+    position: 'absolute',
+    left: 11,
+    top: 12,
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   recommendedImage: {
     width: '100%',
     height: 150,
@@ -462,6 +550,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 8,
     marginBottom: 4,
+  },
+  recommendedPriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  recommendedOriginalPrice: {
+    fontSize: 12,
+    color: '#666',
+    textDecorationLine: 'line-through',
+    textDecorationStyle: 'solid',
+  },
+  recommendedDiscountedPrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#ff9900',
   },
   recommendedPrice: {
     fontSize: 14,

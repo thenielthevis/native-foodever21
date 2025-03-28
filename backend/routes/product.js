@@ -17,13 +17,15 @@ const {
     getProductReviews,
     deleteReview,
     getUserProductReview,
-    getUserAllReviews
+    getUserAllReviews,
+    getDiscountedProducts
 } = require('../controllers/product');
 
 //ALL
 router.get('/products', getProducts);
 router.get('/product/:id', getSingleProduct);
 router.get('/product/:productId/reviews', getProductReviews);
+router.get('/products/discounted', getDiscountedProducts);
 
 // USER
 //REVIEWS

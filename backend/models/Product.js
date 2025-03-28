@@ -54,6 +54,16 @@ const productSchema = new mongoose.Schema({
             message: "Please select correct status."
         }
     },
+    discount: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0
+    },
+    discountedPrice: {
+        type: Number,
+        default: 0
+    },
     numOfReviews: {
         type: Number,
         default: 0
@@ -89,5 +99,15 @@ const productSchema = new mongoose.Schema({
         default: Date.now
     }
 })
+
+// Add pre-save middleware to calculate discounted price
+productSchema.pre('save', function(next) {
+    if (this.discount > 0) {
+        this.discountedPrice = this.price - (this.price * (this.discount / 100));
+    } else {
+        this.discountedPrice = this.price;
+    }
+    next();
+});
 
 module.exports = mongoose.model('Product', productSchema);
