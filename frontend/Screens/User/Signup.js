@@ -19,14 +19,15 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
+import * as SecureStore from 'expo-secure-store'; // Import SecureStore instead of AsyncStorage
 
 // Backend related imports
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Remove AsyncStorage import
 import baseURL from '../../assets/common/baseurl';
 
 // Import the custom loading component for the food-themed loading animation
-import FoodLoadingIndicator from '../../components/FoodLoadingIndicator';
+import FoodLoadingIndicator from '../../Components/FoodLoadingIndicator';
 
 // Ensure WebBrowser redirects are handled
 WebBrowser.maybeCompleteAuthSession();
@@ -268,8 +269,8 @@ const Signup = () => {
         // Step 3: Get Firebase ID token
         const token = await firebaseUser.getIdToken();
         
-        // Step 4: Save token to AsyncStorage
-        await AsyncStorage.setItem("jwt", token);
+        // Step 4: Save token to SecureStore instead of AsyncStorage
+        await SecureStore.setItemAsync("jwt", token);
         
         // Step 5: Register user with your backend
         const userData = {
@@ -353,6 +354,12 @@ const Signup = () => {
       // Sign in with credential
       const userCredential = await signInWithCredential(auth, credential);
       const user = userCredential.user;
+      
+      // Get Firebase ID token
+      const token = await user.getIdToken();
+      
+      // Save token to SecureStore
+      await SecureStore.setItemAsync("jwt", token);
       
       console.log("Google sign up successful:", user.uid);
       setIsLoading(false);

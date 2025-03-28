@@ -4,20 +4,19 @@ import FontAwesome from "react-native-vector-icons/FontAwesome";
 import Fontisto from "react-native-vector-icons/Fontisto";
 import { LinearGradient } from 'expo-linear-gradient';
 
+
 // Import axios and baseURL to fix hardcoded URL issue
 import axios from 'axios';
 import baseURL from '../../assets/common/baseurl';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Replace AsyncStorage with SecureStore
+import * as SecureStore from 'expo-secure-store';
 
 import { signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../../firebaseConfig";
+// import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GOOGLE_SIGNIN_CONFIG } from '../../google-auth-config';
 
-// Replace the deprecated expo-google-app-auth with these
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 
-// Ensure WebBrowser redirects are handled
-WebBrowser.maybeCompleteAuthSession();
 
 const Signin = ({ navigation }) => {
   // State for form inputs and validation
@@ -81,9 +80,9 @@ const Signin = ({ navigation }) => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      // Get Firebase token and save it
+      // Get Firebase token and save it with SecureStore instead of AsyncStorage
       const token = await user.getIdToken();
-      await AsyncStorage.setItem("jwt", token);
+      await SecureStore.setItemAsync("jwt", token);
       
       console.log("Firebase authentication successful for:", user.email);
       
@@ -104,23 +103,13 @@ const Signin = ({ navigation }) => {
         
         console.log("Backend login response:", backendResponse.data);
         
-        // Store user data in a single operation to reduce renders
-        const dataToStore = {};
-        
+        // Store user data securely with SecureStore instead of AsyncStorage
         if (backendResponse.data.token) {
-          dataToStore.backendToken = backendResponse.data.token;
+          await SecureStore.setItemAsync("backendToken", backendResponse.data.token);
         }
         
         if (backendResponse.data.user) {
-          dataToStore.userData = JSON.stringify(backendResponse.data.user);
-        }
-        
-        // Batch storage operations
-        if (Object.keys(dataToStore).length > 0) {
-          const storagePromises = Object.entries(dataToStore).map(([key, value]) => 
-            AsyncStorage.setItem(key, value)
-          );
-          await Promise.all(storagePromises);
+          await SecureStore.setItemAsync("userData", JSON.stringify(backendResponse.data.user));
         }
         
       } catch (backendError) {
@@ -166,42 +155,49 @@ const Signin = ({ navigation }) => {
     }
   };
 
-  // Google Auth config - Add proper error handling for client IDs
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID',
-    androidClientId: process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID || 'YOUR_ANDROID_CLIENT_ID',
-    iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID',
-  });
-  
-  // Handle Google Auth response - Optimize to prevent redundant updates
+  // Handle forgot password
+  const handleForgotPassword = () => {
+    Alert.alert("Forgot Password", "A reset link will be sent to your email");
+  };
+
   useEffect(() => {
-    if (response?.type === 'success' && !isLoading) {
-      const { id_token } = response.params;
-      handleGoogleCredential(id_token);
-    }
-  }, [response]);
+    // Initialize Google Sign-in when component mounts
+    // GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
+  }, []);
   
-  const handleGoogleCredential = async (idToken) => {
-    if (isLoading) return; // Prevent multiple submissions
+  const onGoogleButtonPress = async () => {
+    if (isLoading) return;
     
     setIsLoading(true);
     setError('');
     
     try {
-      // Create a Google credential with the token
-      const credential = GoogleAuthProvider.credential(idToken);
+      // Check if device supports Google Play Services
+      // await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       
-      // Sign in with credential
-      const userCredential = await signInWithCredential(auth, credential);
+      // Get the user's credentials
+      const { idToken } = await GoogleSignin.signIn();
+      
+      if (!idToken) {
+        throw new Error('Failed to get ID token from Google Sign-in');
+      }
+      
+      // Create Firebase credential
+      const googleCredential = GoogleAuthProvider.credential(idToken);
+      
+      // Sign in with Firebase
+      const userCredential = await signInWithCredential(auth, googleCredential);
       const user = userCredential.user;
       
-      // Get Firebase token and save it
+      // Get Firebase token
       const token = await user.getIdToken();
-      await AsyncStorage.setItem("jwt", token);
+      await SecureStore.setItemAsync("jwt", token);
       
-      // Try to login with backend just like in handleSignIn
+      console.log("Firebase authentication successful for:", user.email);
+      
+      // Call backend to synchronize user data
       try {
-        await axios.post(
+        const backendResponse = await axios.post(
           `${baseURL}auth/login`, 
           {
             email: user.email,
@@ -213,43 +209,42 @@ const Signin = ({ navigation }) => {
             }
           }
         );
+        
+        if (backendResponse.data.token) {
+          await SecureStore.setItemAsync("backendToken", backendResponse.data.token);
+        }
+        
+        if (backendResponse.data.user) {
+          await SecureStore.setItemAsync("userData", JSON.stringify(backendResponse.data.user));
+        }
+        
       } catch (backendError) {
-        console.warn("Backend login after Google sign-in failed:", backendError);
-        // Continue even if backend fails
+        console.warn("Backend login failed after Google sign-in:", backendError.message);
+        // Continue even if backend fails - we'll try to sync later
       }
       
-      console.log("Google sign in successful:", user.uid);
-      setIsLoading(false);
-      
-      // Use reset instead of navigate for a cleaner navigation experience
+      // Navigate to Home screen
       navigation.reset({
         index: 0,
         routes: [{ name: 'Home' }],
       });
+      
     } catch (error) {
-      console.error("Google sign in error:", error);
-      setError('Failed to sign in with Google. Please try again.');
+      let errorMessage = 'Failed to sign in with Google.';
+      
+      if (error.code === 'CANCELED') {
+        errorMessage = 'Sign in was canceled.';
+      } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
+        errorMessage = 'Google Play Services is not available on this device.';
+      } else if (error.message) {
+        errorMessage = `Google sign-in error: ${error.message}`;
+      }
+      
+      console.error('Google Sign-In Error:', error);
+      setError(errorMessage);
+    } finally {
       setIsLoading(false);
     }
-  };
-  
-  // Handle Google sign in - prevent multiple calls
-  const handleGoogleSignIn = async () => {
-    if (isLoading) return; // Prevent multiple submissions
-    
-    try {
-      setIsLoading(true);
-      await promptAsync();
-    } catch (error) {
-      console.error("Google sign in error:", error);
-      setError('Failed to start Google sign in.');
-      setIsLoading(false);
-    }
-  };
-
-  // Handle forgot password
-  const handleForgotPassword = () => {
-    Alert.alert("Forgot Password", "A reset link will be sent to your email");
   };
 
   // Handle sign up
@@ -341,7 +336,7 @@ const Signin = ({ navigation }) => {
 
         <TouchableOpacity 
           style={styles.googleButton}
-          onPress={handleGoogleSignIn}
+          // onPress={onGoogleButtonPress}
           accessible={true}
           accessibilityLabel="Sign in with Google button"
           accessibilityHint="Double tap to sign in with your Google account"
