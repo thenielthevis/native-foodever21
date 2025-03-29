@@ -49,32 +49,45 @@ const UserProfile = ({ navigation }) => {
       const token = await SecureStore.getItemAsync("jwt");
       const userDataStr = await SecureStore.getItemAsync("userData");
       
+      // If no token or userData, just set user to null and return
       if (!token || !userDataStr) {
-        throw new Error('No authentication data found');
+        setUser(null);
+        setBackendUser(null);
+        setLoading(false);
+        return;
       }
 
-      const userData = JSON.parse(userDataStr);
-      
-      // Set basic user info from stored data
-      setUser({
-        uid: userData.firebaseUid,
-        displayName: userData.username,
-        email: userData.email,
-        photoURL: 'https://via.placeholder.com/150', // You might want to add a photo URL to your user data
-        createdAt: new Date().toISOString(),
-      });
-      
-      // Fetch additional data from backend
-      const userProfile = await getUserProfile(token);
-      if (!userProfile.error) {
-        setBackendUser(userProfile);
+      try {
+        const userData = JSON.parse(userDataStr);
+        
+        // Set basic user info from stored data
+        setUser({
+          uid: userData.firebaseUid,
+          displayName: userData.username,
+          email: userData.email,
+          photoURL: 'https://via.placeholder.com/150',
+          createdAt: new Date().toISOString(),
+        });
+        
+        // Try to fetch additional data from backend
+        try {
+          const userProfile = await getUserProfile(token);
+          if (!userProfile.error) {
+            setBackendUser(userProfile);
+          }
+        } catch (backendError) {
+          console.log("Backend fetch failed, using stored data only");
+        }
+      } catch (parseError) {
+        console.log("Error parsing stored user data, clearing invalid data");
+        await SecureStore.deleteItemAsync("userData");
+        setUser(null);
+        setBackendUser(null);
       }
     } catch (error) {
-      console.error("Failed to fetch user data:", error);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'signin' }],
-      });
+      console.log("User data fetch failed:", error.message);
+      setUser(null);
+      setBackendUser(null);
     } finally {
       setLoading(false);
     }
@@ -133,22 +146,30 @@ const UserProfile = ({ navigation }) => {
     );
   }
 
-  if (!user) {
+  if (!user && !loading) {
     return (
       <LinearGradient
         colors={[COLORS.primary, COLORS.secondary, COLORS.background]}
         style={styles.centeredContainer}
       >
         <StatusBar barStyle="light-content" />
-        <Text style={styles.errorText}>
-          You are not signed in. Please sign in to view your profile.
-        </Text>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('signin')}
-        >
-          <Text style={styles.actionButtonText}>Go to Sign In</Text>
-        </TouchableOpacity>
+        <View style={styles.messageContainer}>
+          <Text style={styles.messageText}>
+            Please sign in to view your profile
+          </Text>
+          <TouchableOpacity
+            style={styles.signInButton}
+            onPress={() => navigation.navigate('signin')}
+          >
+            <Text style={styles.signInButtonText}>Sign In</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.navigate('Home')}
+          >
+            <Text style={styles.backButtonText}>Back to Home</Text>
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
     );
   }
@@ -359,6 +380,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  messageContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    width: '90%',
+  },
+  messageText: {
+    fontSize: 18,
+    color: COLORS.text.dark,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  signInButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    marginBottom: 10,
+  },
+  signInButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  backButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+  },
+  backButtonText: {
+    color: COLORS.text.medium,
+    fontSize: 16,
+  }
 });
 
 export default UserProfile;

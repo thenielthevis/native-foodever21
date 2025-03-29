@@ -5,6 +5,7 @@ import { listProducts } from '../../Redux/Actions/productActions';
 import { fetchCartCount } from '../../Redux/Actions/cartActions';
 import Header from '../Shared/StyledComponents/Header';
 import BottomNav from '../Shared/StyledComponents/BottomNav';
+import TokenExpired from '../Modals/TokenExpired';
 
 const Home = ({ navigation }) => {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -12,6 +13,7 @@ const Home = ({ navigation }) => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
   const [productImageIndexes, setProductImageIndexes] = useState({});
+  const [showTokenExpiredModal, setShowTokenExpiredModal] = useState(false);
 
   const bannerImages = [
     require('../../assets/Home/burger-banner.jpg'),
@@ -32,8 +34,14 @@ const Home = ({ navigation }) => {
 
   useEffect(() => {
     const initializeData = async () => {
-      await dispatch(fetchCartCount());
-      dispatch(listProducts());
+      try {
+        await dispatch(fetchCartCount());
+        dispatch(listProducts());
+      } catch (error) {
+        if (error.message?.includes('expired') || error.response?.status === 401) {
+          setShowTokenExpiredModal(true);
+        }
+      }
     };
     initializeData();
   }, [dispatch]);
@@ -160,6 +168,15 @@ const Home = ({ navigation }) => {
     );
   };
 
+  const handleLogin = () => {
+    setShowTokenExpiredModal(false);
+    navigation.navigate('SignIn');
+  };
+
+  const handleClose = () => {
+    setShowTokenExpiredModal(false);
+  };
+
   return (
     <>
       <StatusBar translucent backgroundColor="transparent" />
@@ -238,6 +255,12 @@ const Home = ({ navigation }) => {
                 <Image source={selectedImage} style={styles.fullScreenImage} />
               </TouchableOpacity>
             </Modal>
+
+            <TokenExpired
+              visible={showTokenExpiredModal}
+              onLogin={handleLogin}
+              onClose={handleClose}
+            />
 
             <BottomNav navigation={navigation} activeRoute="Home" />
           </View>

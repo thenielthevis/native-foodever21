@@ -164,6 +164,10 @@ const handleApiError = (error, customMessage = 'An error occurred') => {
     errorMessage = 'No response from server. Please check your internet connection.';
   }
   
+  if (error.response?.status === 401 || error.message?.includes('expired')) {
+    throw new Error('Token expired');
+  }
+  
   return { error: true, message: errorMessage };
 };
 
@@ -344,6 +348,9 @@ const getCurrentUser = async () => {
         }
     } catch (error) {
         console.error('Error in getCurrentUser:', error);
+        if (error.response?.status === 401 || error.message?.includes('expired')) {
+            throw new Error('Token expired');
+        }
         return { error: true, message: error.message };
     }
 };
