@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Image, Text, TouchableOpacity, ScrollView, Animated, Modal, SafeAreaView, ImageBackground, ActivityIndicator, StatusBar } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { listProducts } from '../../Redux/Actions/productActions';
+import { fetchCartCount } from '../../Redux/Actions/cartActions';
 import Header from '../Shared/StyledComponents/Header';
 import BottomNav from '../Shared/StyledComponents/BottomNav';
 
@@ -30,7 +31,11 @@ const Home = ({ navigation }) => {
   }, []);
 
   useEffect(() => {
-    dispatch(listProducts());
+    const initializeData = async () => {
+      await dispatch(fetchCartCount());
+      dispatch(listProducts());
+    };
+    initializeData();
   }, [dispatch]);
 
   useEffect(() => {

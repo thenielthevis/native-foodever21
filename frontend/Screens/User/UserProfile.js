@@ -18,6 +18,9 @@ import BottomNav from '../Shared/StyledComponents/BottomNav';
 import { getUserProfile, logoutUser } from "../../Redux/Actions/Auth.actions";
 import { useUser } from '../../Redux/Store/AuthGlobal';
 import { useFocusEffect } from '@react-navigation/native';
+import * as SecureStore from 'expo-secure-store';
+import { SET_CART_COUNT } from '../../Redux/Constants/cartConstants';
+import { clearCartData } from '../../Redux/Actions/cartActions';
 
 // Color palette
 const COLORS = {
@@ -43,27 +46,35 @@ const UserProfile = ({ navigation }) => {
   const fetchUserData = async () => {
     setLoading(true);
     try {
-      // Get the current user from Firebase
-      const currentUser = auth.currentUser;
+      const token = await SecureStore.getItemAsync("jwt");
+      const userDataStr = await SecureStore.getItemAsync("userData");
       
-      if (currentUser) {
-        // Set Firebase user data
-        setUser({
-          uid: currentUser.uid,
-          displayName: currentUser.displayName || 'User',
-          email: currentUser.email,
-          photoURL: currentUser.photoURL || 'https://via.placeholder.com/150',
-          createdAt: currentUser.metadata.creationTime,
-        });
-        
-        // Fetch additional data from backend
-        const userData = await getUserProfile();
-        if (!userData.error) {
-          setBackendUser(userData);
-        }
+      if (!token || !userDataStr) {
+        throw new Error('No authentication data found');
+      }
+
+      const userData = JSON.parse(userDataStr);
+      
+      // Set basic user info from stored data
+      setUser({
+        uid: userData.firebaseUid,
+        displayName: userData.username,
+        email: userData.email,
+        photoURL: 'https://via.placeholder.com/150', // You might want to add a photo URL to your user data
+        createdAt: new Date().toISOString(),
+      });
+      
+      // Fetch additional data from backend
+      const userProfile = await getUserProfile(token);
+      if (!userProfile.error) {
+        setBackendUser(userProfile);
       }
     } catch (error) {
       console.error("Failed to fetch user data:", error);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'signin' }],
+      });
     } finally {
       setLoading(false);
     }
@@ -79,12 +90,26 @@ const UserProfile = ({ navigation }) => {
 
   const handleSignOut = async () => {
     try {
+      // First clear Redux state
+      dispatch(clearCartData());
+      dispatch({ type: SET_CART_COUNT, payload: 0 });
+      
+      // Then clear storage
+      await Promise.all([
+        SecureStore.deleteItemAsync("jwt"),
+        SecureStore.deleteItemAsync("userData")
+      ]);
+      
+      // Finally logout from auth
+      await auth.signOut();
       await logoutUser(dispatch);
+      
       navigation.reset({
         index: 0,
         routes: [{ name: 'signin' }],
       });
     } catch (error) {
+      console.error('Logout error:', error);
       Alert.alert('Error', 'Failed to sign out. Please try again.');
     }
   };

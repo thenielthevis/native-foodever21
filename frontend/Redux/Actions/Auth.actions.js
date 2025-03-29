@@ -27,7 +27,7 @@ const JWT_TOKEN_KEY = 'foodever21_jwt_token';
 const saveToken = async (token) => {
   try {
     await SecureStore.setItemAsync(JWT_TOKEN_KEY, token);
-    console.log('Token saved securely');
+    console.log('Token saved securely:', token);
     return true;
   } catch (error) {
     console.error('Error saving token to SecureStore:', error);
@@ -299,86 +299,53 @@ const registerUserWithBackend = async (userData) => {
 
 // Function to get current user data
 const getCurrentUser = async () => {
-  try {
-    // Get the Firebase token
-    const user = auth.currentUser;
-    if (!user) {
-      return { error: true, message: 'Not authenticated' };
-    }
-    
-    // Get a fresh token to avoid using an expired one
-    let token;
     try {
-      token = await user.getIdToken(true); // true forces a refresh
-      await saveToken(token);
-    } catch (tokenError) {
-      // Try to use existing token from storage as fallback
-      token = await getToken();
-      if (!token) {
-        return { error: true, message: 'No valid authentication token available' };
-      }
-    }
-    
-    // Add a small delay before making the request to ensure token propagation
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    try {
-      // Try to fetch user from backend with proper error handling
-      const response = await axios.get(`${API_URL}auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      });
-      
-      return response.data;
-    } catch (backendError) {
-      // If it's a 401 error, try registration and retry
-      if (backendError.response && backendError.response.status === 401) {
-        try {
-          // Try to register the user with the backend
-          const registrationResponse = await registerUserWithBackend({
-            username: user.displayName || 'User',
-            email: user.email,
-            firebaseUid: user.uid
-          });
-          
-          // If registration was successful, try getting user data again
-          if (registrationResponse.success || registrationResponse.uid) {
-            token = await user.getIdToken(true);
-            await saveToken(token);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            const secondAttemptResponse = await axios.get(`${API_URL}auth/me`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              }
-            });
-            
-            return secondAttemptResponse.data;
-          }
-        } catch (registrationError) {
-          console.error('Auto-registration failed:', registrationError);
+        const user = auth.currentUser;
+        if (!user) {
+            return { error: true, message: 'Not authenticated' };
         }
-      }
-      
-      // For authentication or other errors, clear the token but keep user signed in
-      await removeToken();
-      
-      return { 
-        error: true, 
-        message: backendError.response?.data?.message || backendError.message || 'Failed to fetch user data',
-        status: backendError.response?.status
-      };
+
+        // Get a fresh token
+        const token = await user.getIdToken(true);
+        await saveToken(token);
+
+        try {
+            const response = await axios.get(`${API_URL}/auth/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.data.success) {
+                return response.data;
+            } else {
+                throw new Error(response.data.message || 'Failed to get user data');
+            }
+        } catch (error) {
+            if (error.response?.status === 401) {
+                // Token expired, try to get a new one
+                const newToken = await user.getIdToken(true);
+                await saveToken(newToken);
+                
+                // Retry with new token
+                const retryResponse = await axios.get(`${API_URL}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${newToken}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                return retryResponse.data;
+            }
+            throw error;
+        }
+    } catch (error) {
+        console.error('Error in getCurrentUser:', error);
+        return { error: true, message: error.message };
     }
-  } catch (error) {
-    console.error('Unexpected error in getCurrentUser:', error);
-    return { error: true, message: error.message || 'An unexpected error occurred' };
-  }
 };
 
 // Main login function
@@ -418,18 +385,32 @@ export const loginUser = async (user, dispatch) => {
     }
 };
 
-// Function to get user profile
+// Function to get user profile - Modified to fetch from MongoDB
 export const getUserProfile = async () => {
     try {
-        const userData = await getCurrentUser();
-        
-        if (userData.error) {
-            throw new Error(userData.message || "Failed to get user profile");
+        const token = await SecureStore.getItemAsync("jwt");
+        if (!token) {
+            throw new Error('Authentication token not found');
         }
-        
-        return userData.user || userData;
+
+        const response = await axios.get(`${API_URL}/auth/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log('MongoDB User Profile Response:', response.data);
+
+        if (!response.data || !response.data.user) {
+            throw new Error('Invalid response format from server');
+        }
+
+        // Return the complete user object from MongoDB
+        return response.data.user;
     } catch (error) {
-        console.error("Error fetching user profile:", error);
+        console.error("Error fetching user profile from MongoDB:", error);
         throw error;
     }
 };
@@ -437,45 +418,46 @@ export const getUserProfile = async () => {
 // Registration function
 export const registerUser = async (userData, dispatch) => {
     try {
+        console.log('Starting registration process for:', userData.email);
+        
         // Register with Firebase first
-        const userCredential = await auth.createUserWithEmailAndPassword(
+        const userCredential = await createUserWithEmailAndPassword(
+            auth, 
             userData.email, 
             userData.password
         );
         
         const firebaseUser = userCredential.user;
         
-        // Update Firebase profile if username is provided
+        // Update Firebase profile
         if (userData.username) {
             await updateProfile(firebaseUser, {
                 displayName: userData.username
             });
         }
         
+        // Get token
+        const token = await firebaseUser.getIdToken(true);
+        await saveToken(token);
+        
         // Register with backend
         const backendData = await registerUserWithBackend({
-            username: userData.username || firebaseUser.displayName || 'User',
-            email: userData.email,
-            firebaseUid: firebaseUser.uid,
-            userImage: userData.userImage
+            ...userData,
+            firebaseUid: firebaseUser.uid
         });
         
         if (backendData.error) {
+            await firebaseUser.delete();
             throw new Error(backendData.message || "Registration failed");
         }
         
-        // Login after registration
-        return await loginUser({
-            email: userData.email,
-            password: userData.password
-        }, dispatch);
+        // Set user in Redux store using the backend response data
+        const decoded = jwtDecode(token);
+        dispatch(setCurrentUser(decoded, backendData.user));
+        
+        // Return the complete user data
+        return backendData.user;
     } catch (error) {
-        Toast.show({
-            topOffset: 60,
-            type: "error",
-            text1: "Registration failed",
-            text2: error.message
-        });
         console.error("Registration error:", error);
         throw error;
     }

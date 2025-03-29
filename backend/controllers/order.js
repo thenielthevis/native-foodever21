@@ -7,31 +7,52 @@ exports.placeOrder = async (req, res) => {
   try {
     const { userId, products, paymentMethod } = req.body;
 
-    const user = await User.findOne({ firebaseUid: userId });
+    console.log('Placing order with data:', {
+      userId,
+      productsCount: products?.length,
+      paymentMethod
+    });
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    if (!userId || !products || !Array.isArray(products) || !paymentMethod) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid order data. Required: userId, products array, and paymentMethod' 
+      });
     }
 
-    // Create the order
+    const user = await User.findOne({ firebaseUid: userId });
+    if (!user) {
+      console.error('User not found for firebaseUid:', userId);
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
     const order = new Order({
       userId: user._id,
-      products,
+      products: products.map(p => ({
+        productId: p.productId,
+        quantity: p.quantity
+      })),
       paymentMethod,
       status: 'shipping',
     });
 
-    await order.save();
+    const savedOrder = await order.save();
+    console.log('Order saved successfully:', savedOrder._id);
 
     res.status(201).json({
+      success: true,
       message: 'Order placed successfully',
-      order,
+      order: savedOrder
     });
   } catch (error) {
     console.error('Error placing order:', error);
     res.status(500).json({
+      success: false,
       message: 'Failed to place order',
-      error: error.message,
+      error: error.message
     });
   }
 };
@@ -57,31 +78,40 @@ exports.getUserOrders = async (req, res) => {
 exports.deleteOrderedProducts = async (req, res) => {
   try {
     const { userId, productIds } = req.body;
+    console.log('Deleting products:', { userId, productIds });
 
-    // Validate inputs
     if (!userId || !Array.isArray(productIds) || productIds.length === 0) {
-      return res.status(400).json({ message: 'Invalid request data. Ensure userId and productIds are provided.' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid request data' 
+      });
     }
 
-    // Resolve MongoDB _id from Firebase UID
     const user = await User.findOne({ firebaseUid: userId });
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
     }
 
-    // Perform delete operation using resolved user._id
     const result = await OrderList.deleteMany({
       user_id: user._id,
-      product_id: { $in: productIds },
+      product_id: { $in: productIds }
     });
 
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ message: 'No matching products found to delete.' });
-    }
+    console.log('Delete result:', result);
 
-    res.status(200).json({ message: 'Ordered products removed successfully.' });
+    res.status(200).json({ 
+      success: true,
+      message: 'Ordered products removed successfully',
+      deletedCount: result.deletedCount
+    });
   } catch (error) {
     console.error('Error removing ordered products:', error);
-    res.status(500).json({ message: 'Internal server error.' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to remove products from cart' 
+    });
   }
 };

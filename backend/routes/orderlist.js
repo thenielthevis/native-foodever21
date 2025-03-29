@@ -12,7 +12,8 @@ const { addToOrderList,
  } = require('../controllers/orderlist');
 
 // Route to add an item to the order list
-router.post('/add-to-orderlist', protect, addToOrderList);
+router.route('/add-to-orderlist')
+    .post(protect, addToOrderList);
 router.get('/get-user-id', getUserId);
 router.get('/get-orderlist-count', protect, getOrderListCount);
 router.get('/user-orderlist', protect, getUserOrderList);

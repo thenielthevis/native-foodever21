@@ -5,86 +5,60 @@ const cloudinary = require('../utils/cloudinary');
 const bcrypt = require('bcryptjs');
 
 exports.signup = async (req, res) => {
-  const { username, email, password, firebaseUid, role, status, userImage, cloudinary_id } = req.body;
-
   try {
-    console.log('Signup request received for:', email, firebaseUid);
+    console.log('Signup request received:', {
+      ...req.body,
+      password: '[HIDDEN]'
+    });
     
-    // Check if user already exists
+    const { username, email, password, firebaseUid, userImage } = req.body;
+
+    // Validate required fields
+    if (!email || !firebaseUid) {
+      return res.status(400).json({ 
+        message: 'Email and Firebase UID are required' 
+      });
+    }
+
+    // Check for existing user
     const existingUser = await User.findOne({ 
-      $or: [{ email }, { firebaseUid }] 
+      $or: [
+        { email: email.toLowerCase() }, 
+        { firebaseUid }
+      ] 
     });
 
     if (existingUser) {
-      // User already exists, return success instead of error
-      console.log('User already exists, returning existing user data');
+      console.log('User already exists:', existingUser.email);
       return res.status(200).json({
-        message: 'User already exists in the system',
-        uid: existingUser.firebaseUid,
-        user: {
-          _id: existingUser._id,
-          email: existingUser.email,
-          username: existingUser.username,
-          role: existingUser.role,
-          status: existingUser.status
-        }
+        message: 'User already exists',
+        user: existingUser
       });
     }
 
-    // Rest of your existing code...
-    console.log('Creating new user in MongoDB and Firestore');
-    
-    // Make sure password is defined before hashing
-    let hashedPassword;
-    if (password) {
-      hashedPassword = await bcrypt.hash(password, 10);
-    } else {
-      // Create a secure random password if none provided
-      const randomPassword = Math.random().toString(36).slice(-8);
-      hashedPassword = await bcrypt.hash(randomPassword, 10);
-    }
-
-    // Create user in MongoDB
+    // Create new user
     const newUser = new User({
       username: username || 'User',
-      email,
-      password: hashedPassword, // Use the hashed password
+      email: email.toLowerCase(),
+      password: password,
       firebaseUid,
-      role: role || 'user',
-      status: status || 'active',
-      userImage, // Add the userImage URL
-      cloudinary_id // Add the cloudinary_id for future reference
+      role: 'user',
+      status: 'active',
+      userImage: userImage || null
     });
 
-    await newUser.save();
-    
-    // Also create a record in Firestore if used
-    if (db) {
-      await db.collection('users').doc(firebaseUid).set({
-        username: username || 'User',
-        email,
-        status: 'active',
-        avatarURL: userImage || null // Store the image URL in Firestore as well
-      });
-    }
-    
-    res.status(201).json({ 
-      message: 'User registered successfully in Firebase and MongoDB.',
-      uid: firebaseUid,
-      user: {
-        _id: newUser._id,
-        email: newUser.email,
-        username: newUser.username,
-        role: newUser.role,
-        status: newUser.status
-      }
+    const savedUser = await newUser.save();
+    console.log('User saved successfully:', savedUser.email);
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: savedUser
     });
   } catch (error) {
-    console.error('Error creating user:', error);
-    res.status(500).json({ 
-      message: 'Internal server error', 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    console.error('Signup error:', error);
+    res.status(500).json({
+      message: 'Failed to create user',
+      error: error.message
     });
   }
 };
@@ -128,35 +102,51 @@ exports.deleteUser = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, uid } = req.body;
 
   try {
-    // Authenticate the user using Firebase Authentication (get user details from Firebase)
-    const userRecord = await admin.auth().getUserByEmail(email);
-
-    // Fetch the user's information from Firestore using the Firebase UID
-    const userDoc = await db.collection('users').doc(userRecord.uid).get();
-
-    // Check if the user document exists
-    if (!userDoc.exists) {
-      return res.status(404).json({ message: 'User not found in Firestore' });
+    console.log('Login request received for:', email);
+    
+    let user = await User.findOne({ firebaseUid: uid });
+    
+    if (!user) {
+      console.log('Creating new user in MongoDB for:', email);
+      user = await User.create({
+        email,
+        firebaseUid: uid,
+        username: email.split('@')[0],
+        role: 'user',
+        status: 'active'
+      });
     }
 
-    const user = userDoc.data();
+    console.log('User found/created:', {
+      id: user._id,
+      email: user.email,
+      username: user.username
+    });
 
-    // Send the user information along with a success message
+    // Send complete user data in response
     res.status(200).json({
+      success: true,
       message: 'User logged in successfully',
       user: {
+        _id: user._id.toString(), // Convert ObjectId to string
         username: user.username,
         email: user.email,
-        status: user.status,  // Assuming status is a field in your user document
-        avatarURL: user.avatarURL,  // Assuming avatarURL is a field in your user document
-      },
+        role: user.role || 'user',
+        status: user.status || 'active',
+        firebaseUid: user.firebaseUid,
+        avatarURL: user.userImage || null
+      }
     });
   } catch (error) {
-    console.error(error);
-    res.status(400).json({ message: 'Login failed' });
+    console.error('Login error:', error);
+    res.status(400).json({ 
+      success: false,
+      message: 'Login failed', 
+      error: error.message 
+    });
   }
 };
 
@@ -307,45 +297,90 @@ exports.uploadAvatar = [
 // Update the getCurrentUser method:
 
 exports.getCurrentUser = async (req, res) => {
-  try {
-    // The user is already attached to req.user by the protect middleware
-    const user = req.user;
-    
-    console.log('GET /me - User from protect middleware:', user);
-    
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    // Fetch additional Firestore data if needed
-    let firestoreData = {};
     try {
-      const userDoc = await db.collection('users').doc(user.firebaseUid).get();
-      if (userDoc.exists) {
-        firestoreData = userDoc.data();
-      }
-    } catch (firestoreError) {
-      console.error('Error fetching Firestore data:', firestoreError);
-      // Continue without Firestore data if it fails
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ message: 'No token provided' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        
+        // Verify Firebase token
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        const firebaseUid = decodedToken.uid;
+
+        // Get user data from both MongoDB and Firestore
+        const [mongoUser, firestoreDoc] = await Promise.all([
+            User.findOne({ firebaseUid }),
+            db.collection('users').doc(firebaseUid).get()
+        ]);
+
+        // If user doesn't exist in MongoDB, create them
+        let user = mongoUser;
+        if (!user) {
+            const firebaseUser = await admin.auth().getUser(firebaseUid);
+            
+            user = new User({
+                username: firebaseUser.displayName || 'User',
+                email: firebaseUser.email,
+                password: 'firebase-auth',
+                firebaseUid: firebaseUser.uid,
+                role: 'user',
+                status: 'active',
+                userImage: firebaseUser.photoURL || null,
+                mobileNumber: firestoreDoc.exists ? firestoreDoc.data().mobileNumber : null,
+                address: firestoreDoc.exists ? firestoreDoc.data().address : null
+            });
+
+            await user.save();
+            console.log('Created new user in MongoDB:', user.email);
+        }
+
+        // Get Firestore data if it exists
+        const firestoreData = firestoreDoc.exists ? firestoreDoc.data() : {};
+
+        // Combine MongoDB and Firestore data, with MongoDB taking precedence
+        const combinedUserData = {
+            _id: user._id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            status: user.status,
+            userImage: user.userImage,
+            firebaseUid: user.firebaseUid,
+            mobileNumber: user.mobileNumber || firestoreData.mobileNumber,
+            address: user.address || firestoreData.address,
+            // Add any additional Firestore fields you want to include
+            ...firestoreData,
+            // MongoDB fields take precedence
+            ...user.toObject()
+        };
+
+        console.log('Combined user data:', {
+            id: combinedUserData._id,
+            email: combinedUserData.email,
+            hasMobile: !!combinedUserData.mobileNumber,
+            hasAddress: !!combinedUserData.address
+        });
+
+        res.status(200).json({
+            success: true,
+            user: combinedUserData
+        });
+
+    } catch (error) {
+        console.error('Error in getCurrentUser:', error);
+        if (error.code === 'auth/id-token-expired') {
+            return res.status(401).json({
+                success: false,
+                message: 'Token expired'
+            });
+        }
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
-    
-    // Return combined user data
-    res.status(200).json({
-      message: 'User retrieved successfully',
-      user: {
-        _id: user._id,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-        status: user.status,
-        userImage: user.userImage || firestoreData.avatarURL,
-        // Include other fields as needed
-      }
-    });
-  } catch (error) {
-    console.error('Error in getCurrentUser:', error);
-    res.status(500).json({ message: 'Failed to fetch user details' });
-  }
 };
 
 exports.saveFcmToken = async (req, res) => {

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import Fontisto from "react-native-vector-icons/Fontisto";
 import { LinearGradient } from 'expo-linear-gradient';
-
+import { useDispatch } from 'react-redux';
 
 // Import axios and API_URL to fix hardcoded URL issue
 import axios from 'axios';
@@ -15,10 +15,10 @@ import { signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider } 
 import { auth } from "../../firebaseConfig";
 // import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { GOOGLE_SIGNIN_CONFIG } from '../../google-auth-config';
-
-
+import { fetchCartCount } from '../../Redux/Actions/cartActions';
 
 const Signin = ({ navigation }) => {
+  const dispatch = useDispatch(); // Add this line
   // State for form inputs and validation
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -68,28 +68,25 @@ const Signin = ({ navigation }) => {
 
   // Handle sign in with Firebase
   const handleSignIn = async () => {
-    if (!validateForm() || isLoading) return; // Prevent multiple submissions
+    if (!validateForm() || isLoading) return;
     
     setIsLoading(true);
     setError('');
     
     try {
-      console.log("Attempting to sign in with:", email);
+      console.log("Signin - Attempting Firebase auth with:", email);
       
-      // Sign in with Firebase authentication
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      
-      // Get Firebase token and save it with SecureStore instead of AsyncStorage
       const token = await user.getIdToken();
+      
       await SecureStore.setItemAsync("jwt", token);
+      console.log("Signin - Firebase auth successful, token stored");
       
-      console.log("Firebase authentication successful for:", user.email);
-      
-      // Make direct axios call to your backend
       try {
+        console.log("Signin - Calling backend login...");
         const backendResponse = await axios.post(
-          `${API_URL}auth/login`, 
+          `${API_URL}/auth/login`,
           {
             email: user.email,
             uid: user.uid
@@ -101,56 +98,56 @@ const Signin = ({ navigation }) => {
           }
         );
         
-        console.log("Backend login response:", backendResponse.data);
+        console.log("Signin - Backend response:", backendResponse.data);
         
-        // Store user data securely with SecureStore instead of AsyncStorage
-        if (backendResponse.data.token) {
-          await SecureStore.setItemAsync("backendToken", backendResponse.data.token);
+        if (!backendResponse.data.success || !backendResponse.data.user || !backendResponse.data.user._id) {
+          console.error("Invalid response structure:", backendResponse.data);
+          throw new Error('Invalid response from server');
         }
+
+        const userData = {
+          _id: backendResponse.data.user._id,
+          username: backendResponse.data.user.username || user.displayName || email.split('@')[0],
+          email: backendResponse.data.user.email || user.email,
+          role: backendResponse.data.user.role || 'user',
+          status: backendResponse.data.user.status || 'active',
+          firebaseUid: user.uid,
+          token: token
+        };
+
+        console.log("Signin - Storing user data:", {
+          id: userData._id,
+          email: userData.email,
+          username: userData.username
+        });
+
+        await SecureStore.setItemAsync("userData", JSON.stringify(userData));
         
-        if (backendResponse.data.user) {
-          await SecureStore.setItemAsync("userData", JSON.stringify(backendResponse.data.user));
-        }
+        // Verify stored data
+        const storedData = await SecureStore.getItemAsync("userData");
+        const parsedData = JSON.parse(storedData);
+        console.log('Signin - Verification:', {
+          stored_id: parsedData._id,
+          stored_email: parsedData.email,
+          has_token: !!parsedData.token
+        });
+
+        await dispatch(fetchCartCount());  // Add this line
+
+        setIsLoading(false);
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        });
         
       } catch (backendError) {
-        console.warn("Backend login failed, but continuing with Firebase auth:", backendError);
-        // Continue even if backend fails - we'll try to sync later
+        console.error("Signin - Backend error:", backendError);
+        throw new Error(backendError.message || 'Failed to complete login');
       }
       
-      // Only set loading to false after all async operations are complete
-      setIsLoading(false);
-      
-      // Navigate to Home screen
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Home' }],
-      });
-    } catch (firebaseError) {
-      // Set specific error message based on Firebase error code
-      let errorMessage = 'Failed to sign in. Please try again';
-      
-      switch(firebaseError.code) {
-        case 'auth/invalid-email':
-          errorMessage = 'Invalid email address format';
-          break;
-        case 'auth/user-disabled':
-          errorMessage = 'This account has been disabled';
-          break;
-        case 'auth/user-not-found':
-          errorMessage = 'No account found with this email';
-          break;
-        case 'auth/wrong-password':
-          errorMessage = 'Incorrect password';
-          break;
-        case 'auth/too-many-requests':
-          errorMessage = 'Too many failed login attempts. Please try again later';
-          break;
-        default:
-          console.error("Firebase auth error:", firebaseError.code, firebaseError.message);
-      }
-      
-      // Update state only once
-      setError(errorMessage);
+    } catch (error) {
+      console.error("Signin error:", error);
+      setError(error.message);
       setIsLoading(false);
     }
   };
@@ -163,6 +160,7 @@ const Signin = ({ navigation }) => {
   useEffect(() => {
     // Initialize Google Sign-in when component mounts
     // GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
+    checkStoredData();
   }, []);
   
   const onGoogleButtonPress = async () => {
@@ -250,6 +248,18 @@ const Signin = ({ navigation }) => {
   // Handle sign up
   const handleSignUp = () => {
     navigation.navigate('signup'); // Navigate to the sign-up screen
+  };
+
+  // Add a helper function to check stored data
+  const checkStoredData = async () => {
+    try {
+      const userData = await SecureStore.getItemAsync("userData");
+      const userToken = await SecureStore.getItemAsync("jwt");
+      console.log('Current stored userData:', userData ? JSON.parse(userData) : null);
+      console.log('Current stored jwt:', userToken);
+    } catch (error) {
+      console.error('Error checking stored data:', error);
+    }
   };
 
   return (
@@ -354,6 +364,13 @@ const Signin = ({ navigation }) => {
             <Text style={styles.signUpText}>Sign up</Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity 
+          style={styles.backToHomeContainer}
+          onPress={() => navigation.navigate('Home')}
+        >
+          <Text style={styles.backToHomeText}>Back to Home</Text>
+        </TouchableOpacity>
       </View>
     </LinearGradient>
   );
@@ -542,5 +559,18 @@ const styles = StyleSheet.create({
       height: '100%',
       opacity: 0.03,
       zIndex: -1,
-    }
+    },
+    backToHomeContainer: {
+      alignItems: 'center',
+      marginTop: 15,
+    },
+    backToHomeText: {
+      color: '#333',
+      fontSize: 14,
+      fontWeight: '500',
+      textDecorationLine: 'underline',
+      textShadowColor: 'rgba(255, 255, 255, 0.5)',
+      textShadowOffset: { width: 0.5, height: 0.5 },
+      textShadowRadius: 1,
+    },
 });

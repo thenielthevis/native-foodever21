@@ -4,16 +4,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { listProducts, fetchProductReviews } from '../../Redux/Actions/productActions';
 import Header from '../Shared/StyledComponents/Header';
+import CartModal from '../Modals/CartModal';
+import OrderModal from '../Modals/OrderModal';
 
 const ProductDetails = ({ route, navigation }) => {
   const { product } = route.params;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [cartCount, setCartCount] = useState(3); // Mock cart count - replace with real data
+  const [cartModalVisible, setCartModalVisible] = useState(false);
+  const [orderModalVisible, setOrderModalVisible] = useState(false);
   const dispatch = useDispatch();
   const productList = useSelector((state) => state.productList);
   const { products = [] } = productList;
-  const productReviews = useSelector((state) => state.productReviews);
-  const { loading: reviewsLoading, error: reviewsError, reviews = [] } = productReviews;
+  const productReviews = useSelector((state) => state.productReviews || {});
+  const { loading: reviewsLoading = false, error: reviewsError = null, reviews = [] } = productReviews;
 
   useEffect(() => {
     dispatch(listProducts());
@@ -110,6 +114,29 @@ const ProductDetails = ({ route, navigation }) => {
       </TouchableOpacity>
     );
   };
+
+  const handleOrderNow = () => {
+    setOrderModalVisible(true);
+  };
+
+  const bottomNav = (
+    <View style={styles.bottomNav}>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={[styles.button, styles.addToCartButton]}
+          onPress={() => setCartModalVisible(true)}
+        >
+          <Text style={styles.buttonText}>Add to Cart</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.button, styles.orderButton]}
+          onPress={handleOrderNow}
+        >
+          <Text style={styles.buttonText}>Order Now</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -267,16 +294,20 @@ const ProductDetails = ({ route, navigation }) => {
         </View>
       </ScrollView>
 
-      <View style={styles.bottomNav}>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={[styles.button, styles.addToCartButton]}>
-            <Text style={styles.buttonText}>Add to Cart</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.button, styles.orderButton]}>
-            <Text style={styles.buttonText}>Order Now</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <CartModal 
+        visible={cartModalVisible}
+        onClose={() => setCartModalVisible(false)}
+        product={product}
+      />
+
+      <OrderModal
+        visible={orderModalVisible}
+        onClose={() => setOrderModalVisible(false)}
+        product={product}
+        navigation={navigation}
+      />
+      
+      {bottomNav}
     </SafeAreaView>
   );
 };

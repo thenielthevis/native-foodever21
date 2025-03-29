@@ -48,6 +48,12 @@ const userSchema = new mongoose.Schema({
     cloudinary_id: {
         type: String,
     },
+    mobileNumber: {
+        type: String,
+    },
+    address: {
+        type: String,
+    },
 });
 
 // Add a method to update FCM token with timestamp

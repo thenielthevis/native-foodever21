@@ -245,7 +245,6 @@ const Signup = () => {
     }
   };
   
-  // Updated signup function
   const handleSignUp = async () => {
     if (validateForm()) {
       setIsLoading(true);
@@ -255,77 +254,68 @@ const Signup = () => {
         if (profileImage) {
           userImageUrl = await uploadImage();
         }
-        
-        // Step 1: Create user in Firebase Authentication
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+        // Step 1: Create user in Firebase
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email.trim().toLowerCase(),
+          password
+        );
         const firebaseUser = userCredential.user;
-        
-        // Step 2: Update Firebase profile with display name and photo URL
+
+        // Step 2: Update Firebase profile
         await updateProfile(firebaseUser, {
           displayName: name,
           photoURL: userImageUrl || null
         });
-        
-        // Step 3: Get Firebase ID token
-        const token = await firebaseUser.getIdToken();
-        
-        // Step 4: Save token to SecureStore instead of AsyncStorage
-        await SecureStore.setItemAsync("jwt", token);
-        
-        // Step 5: Register user with your backend
+
+        // Step 3: Get Firebase token
+        const token = await firebaseUser.getIdToken(true);
+
+        // Step 4: Create user data object
         const userData = {
           username: name,
-          email: email,
-          password: password,
+          email: email.toLowerCase().trim(),
+          password: password, // MongoDB needs this
           firebaseUid: firebaseUser.uid,
-          userImage: userImageUrl, // Add the image URL
-          cloudinary_id: userImageUrl ? 'cloudinary_id_here' : null // You might get this from Cloudinary response
+          userImage: userImageUrl
         };
-        
-        try {
-          // Step 6: Call your backend API
-          const response = await axios.post(`${API_URL}auth/signup`, userData, {
+
+        // Step 5: Register with MongoDB backend
+        console.log('Sending registration data to backend:', {
+          ...userData,
+          password: '[HIDDEN]'
+        });
+
+        const backendResponse = await axios.post(
+          `${API_URL}/auth/signup`,  // Note the forward slash after API_URL
+          userData,
+          {
             headers: {
+              'Authorization': `Bearer ${token}`,
               'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
+              'Content-Type': 'application/json'
             }
-          });
-          
-          console.log('Backend registration successful:', response.data);
-          
-          setIsLoading(false);
-          Alert.alert(
-            "Success", 
-            "Account created successfully!",
-            [{ text: "OK", onPress: () => navigation.navigate('signin') }]
-          );
-        } catch (backendError) {
-          console.error("Failed to register with backend:", backendError);
-          
-          // Handle backend registration error but don't delete Firebase user
-          setIsLoading(false);
-          Alert.alert(
-            "Partial Success", 
-            "Account created but profile setup incomplete. Please try logging in.",
-            [{ text: "OK", onPress: () => navigation.navigate('signin') }]
-          );
-        }
+          }
+        );
+
+        console.log('Backend registration successful:', backendResponse.data);
+
+        setIsLoading(false);
+        Alert.alert(
+          "Success",
+          "Account created successfully!",
+          [{ text: "OK", onPress: () => navigation.navigate('signin') }]
+        );
+
       } catch (error) {
         setIsLoading(false);
-        
-        // Handle Firebase auth errors
-        if (error.code === 'auth/email-already-in-use') {
-          Alert.alert("Error", "Email is already in use");
-        } else if (error.code === 'auth/invalid-email') {
-          Alert.alert("Error", "Invalid email format");
-        } else if (error.code === 'auth/weak-password') {
-          Alert.alert("Error", "Password is too weak");
-        } else {
-          Alert.alert("Error", "Failed to create account: " + error.message);
-          console.error("Firebase auth error:", error);
-        }
-      }        
+        console.error('Registration error:', error.response?.data || error.message);
+        Alert.alert(
+          "Error",
+          error.response?.data?.message || error.message || "Failed to create account"
+        );
+      }
     }
   };
 
@@ -563,6 +553,13 @@ const Signup = () => {
               <Text style={styles.signInLink}>Sign in</Text>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity 
+            style={styles.backToHomeContainer}
+            onPress={() => navigation.navigate('Home')}
+          >
+            <Text style={styles.backToHomeText}>Back to Home</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </LinearGradient>
@@ -800,5 +797,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 10,
+  },
+  backToHomeContainer: {
+    alignItems: 'center',
+    marginTop: 15,
+    marginBottom: 20,
+  },
+  backToHomeText: {
+    color: '#333',
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+    textShadowColor: 'rgba(255, 255, 255, 0.5)',
+    textShadowOffset: { width: 0.5, height: 0.5 },
+    textShadowRadius: 1,
   },
 });

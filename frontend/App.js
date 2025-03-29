@@ -4,8 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
-import store from './Redux/Store/productStore';
-// Import the UserProvider
+import store from './Redux/Store/cartStore';
 import { UserProvider } from './Redux/Store/AuthGlobal';
 import Home from './Screens/Home/Home';
 import ProductDetails from './Screens/Product/ProductDetails';
@@ -13,8 +12,11 @@ import Search from './Screens/Search/Search';
 import Signin from './Screens/User/Signin';
 import Signup from './Screens/User/Signup';
 import UserProfile from './Screens/User/UserProfile';
-// Add this import for EditProfile component
 import EditProfile from './Screens/User/EditProfile';
+import CartScreen from './Screens/Cart/CartScreen';
+import Payment from './Screens/Cart/Checkout/Payment';
+import Confirm from './Screens/Cart/Checkout/Confirm';
+import Checkout from './Screens/Cart/Checkout/Checkout';
 
 // Add these imports for push notifications
 import { useState, useEffect } from 'react';
@@ -62,41 +64,39 @@ export default function App() {
         <SafeAreaProvider>
           <NavigationContainer>
             <StatusBar style="auto" />
-            <Stack.Navigator initialRouteName="Home">
+            <Stack.Navigator 
+              initialRouteName="Home"
+              screenOptions={{
+                headerShown: false
+              }}
+            >
+              <Stack.Screen name="Home" component={Home} />
+              <Stack.Screen name="ProductDetails" component={ProductDetails} />
+              <Stack.Screen name="Search" component={Search} />
+              <Stack.Screen name="signin" component={Signin} />
+              <Stack.Screen name="signup" component={Signup} />
+              <Stack.Screen name="profile" component={UserProfile} />
+              <Stack.Screen name="EditProfile" component={EditProfile} />
               <Stack.Screen 
-                name="Home" 
-                component={Home}
-                options={{ headerShown: false }}
+                name="Cart" 
+                component={CartScreen}
+                options={{ headerShown: true }}
               />
               <Stack.Screen 
-                name="ProductDetails" 
-                component={ProductDetails}
-                options={{ headerShown: false }}
+                name="Confirm" 
+                component={Confirm}
+                options={{ 
+                  headerShown: true,
+                  title: 'Confirm Order'
+                }}
               />
               <Stack.Screen 
-                name="Search" 
-                component={Search}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen 
-                name="signin" 
-                component={Signin}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen 
-                name="signup" 
-                component={Signup}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen 
-                name="profile" 
-                component={UserProfile}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen 
-                name="EditProfile" 
-                component={EditProfile}
-                options={{ headerShown: false }}
+                name="Payment" 
+                component={Payment}
+                options={{ 
+                  headerShown: true,
+                  title: 'Payment'
+                }}
               />
             </Stack.Navigator>
           </NavigationContainer>

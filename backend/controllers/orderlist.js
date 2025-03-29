@@ -6,21 +6,41 @@ const { admin, db } = require('../utils/firebaseAdminConfig');
 exports.addToOrderList = async (req, res) => {
   try {
     const { product_id, user_id, quantity } = req.body;
-
-    // Log the incoming request body
-    console.log("Incoming Request Body:", req.body);
+    
+    console.log('AddToOrderList - Request:', {
+      product_id,
+      user_id,
+      quantity,
+      headers: req.headers
+    });
 
     if (!product_id || !user_id || !quantity) {
-      console.log("Missing fields in request body.");
+      console.log('AddToOrderList - Missing fields:', { product_id, user_id, quantity });
       return res.status(400).json({ message: 'Product ID, User ID, and Quantity are required.' });
     }
 
-    // Verify user existence
+    // Verify user matches authenticated user
+    const authenticatedUserId = req.user._id;
+    if (authenticatedUserId.toString() !== user_id) {
+      console.log('AddToOrderList - User mismatch:', {
+        authenticated: authenticatedUserId,
+        requested: user_id
+      });
+      return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    // Verify user existence and match with authenticated user
     const user = await User.findById(user_id);
     if (!user) {
-      console.log("User not found for user_id:", user_id);
+      console.log("OrderList - User not found in MongoDB:", user_id);
       return res.status(404).json({ message: 'User not found.' });
     }
+
+    console.log("OrderList - User verified:", {
+      id: user._id,
+      email: user.email,
+      firebaseUid: user.firebaseUid
+    });
 
     // Verify product existence
     const product = await Product.findById(product_id);
@@ -36,17 +56,18 @@ exports.addToOrderList = async (req, res) => {
       console.log("Existing order found. Updating quantity...");
       existingOrder.quantity += quantity;
       await existingOrder.save();
+
+      // Populate product details for response
+      await existingOrder.populate('product_id');
+      
+      const finalPrice = product.discountedPrice || product.price;
+      
       return res.status(200).json({
         message: 'Order list updated successfully.',
-        order: existingOrder,
-        user: {
-          username: user.username,
-          email: user.email,
-        },
-        product: {
-          name: product.name,
-          description: product.description,
-        },
+        order: {
+          ...existingOrder.toObject(),
+          calculatedPrice: finalPrice * existingOrder.quantity
+        }
       });
     }
 
@@ -59,23 +80,25 @@ exports.addToOrderList = async (req, res) => {
     });
 
     await newOrder.save();
+    await newOrder.populate('product_id');
+
+    const finalPrice = product.discountedPrice || product.price;
+
     console.log("Order created successfully.");
 
     return res.status(201).json({
       message: 'Product added to order list successfully.',
-      order: newOrder,
-      user: {
-        username: user.username,
-        email: user.email,
-      },
-      product: {
-        name: product.name,
-        description: product.description,
-      },
+      order: {
+        ...newOrder.toObject(),
+        calculatedPrice: finalPrice * quantity
+      }
     });
   } catch (error) {
-    console.error('Error adding to order list:', error); // Log the actual error
-    res.status(500).json({ message: 'Failed to add product to order list.' });
+    console.error('AddToOrderList - Error:', error);
+    res.status(500).json({ 
+      message: 'Failed to add product to order list',
+      error: error.message
+    });
   }
 };
 
@@ -117,20 +140,23 @@ exports.getUserId = async (req, res) => {
 // Example route handler
 exports.getOrderListCount = async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: 'Unauthorized: No token provided.' });
+    const userId = req.user._id;
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    const userId = decodedToken.uid;
+    console.log('Getting count for user:', userId);
 
-    // Fetch the user's order list count
-    const count = await OrderList.countDocuments({ user_id: userId });
-    res.status(200).json({ count });
+    // Get all orders and sum up quantities
+    const orders = await OrderList.find({ user_id: userId });
+    const totalItems = orders.reduce((sum, order) => sum + (order.quantity || 0), 0);
+    
+    console.log('Total items count (sum of quantities):', totalItems);
+    
+    res.status(200).json({ count: totalItems });
   } catch (error) {
-    console.error('Error fetching order list count:', error);
-    res.status(500).json({ message: 'Failed to fetch order list count.' });
+    console.error('Error in getOrderListCount:', error);
+    res.status(500).json({ message: 'Failed to get order count', error: error.message });
   }
 };
 
@@ -166,6 +192,7 @@ exports.getUserOrderList = async (req, res) => {
         name: order.product_id.name,
         description: order.product_id.description,
         price: order.product_id.price,
+        discountedPrice: order.product_id.discountedPrice,
         image: order.product_id.images[0]?.url || '', // Assuming product has an `images` array
       },
       quantity: order.quantity,

@@ -1,7 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { initializeAuth, getReactNativePersistence } from "firebase/auth";
+import { getAuth, initializeAuth, getReactNativePersistence } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Your web app's Firebase configuration
@@ -23,13 +22,5 @@ const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage)
 });
 
-// Initialize Google Auth Provider and export
-export const googleProvider = new GoogleAuthProvider();
-// Configure Google provider (optional)
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
-
-// Export the app and auth instances
-export { app, auth };
+export { auth };
 export default app;
