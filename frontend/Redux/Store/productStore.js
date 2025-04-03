@@ -1,14 +1,28 @@
 import { createStore, combineReducers, applyMiddleware } from 'redux';
 import thunk from 'redux-thunk';
-import { productListReducer, productReviewsReducer } from '../Reducers/productReducers';
+import {
+  productListReducer,
+  productReviewsReducer,
+  productCreateReducer,
+  productUpdateReducer,
+  productDeleteReducer
+} from '../Reducers/productReducers';
 
-const rootReducer = combineReducers({
+// Create a product-focused store that only handles product actions
+const productReducer = combineReducers({
   productList: productListReducer,
-  productReviews: productReviewsReducer
+  productReviews: productReviewsReducer,
+  productCreate: productCreateReducer,
+  productUpdate: productUpdateReducer,
+  productDelete: productDeleteReducer
 });
 
 const middleware = [thunk];
 
-const store = createStore(rootReducer, applyMiddleware(...middleware));
+// Dedicated store for product-related state only
+const productStore = createStore(
+  productReducer,
+  applyMiddleware(...middleware)
+);
 
-export default store;
+export default productStore;

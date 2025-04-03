@@ -51,7 +51,7 @@ const getToken = async () => {
     if (token) {
       return token;
     }
-    
+   
     // If not in SecureStore, check AsyncStorage (for backward compatibility)
     const asyncToken = await AsyncStorage.getItem("jwt");
     if (asyncToken) {
@@ -61,13 +61,14 @@ const getToken = async () => {
       await AsyncStorage.removeItem("jwt");
       return asyncToken;
     }
-    
+   
     return null;
   } catch (error) {
     console.error('Error retrieving token:', error);
     return null;
   }
 };
+
 
 // Helper function to remove JWT token
 const removeToken = async () => {
@@ -82,6 +83,7 @@ const removeToken = async () => {
   }
 };
 
+
 export const registerPushNotificationToken = async (token) => {
   try {
     // Get the current Firebase user
@@ -89,13 +91,13 @@ export const registerPushNotificationToken = async (token) => {
     if (!firebaseUser) {
       return { error: true, message: 'Not authenticated' };
     }
-    
+   
     // Get a fresh token
     const authToken = await firebaseUser.getIdToken(true);
-    
+   
     // Send FCM token to backend
     const response = await axios.post(
-      `${API_URL}auth/update-fcm-token`, 
+      `${API_URL}auth/update-fcm-token`,
       { fcmToken: token },
       {
         headers: {
@@ -105,14 +107,14 @@ export const registerPushNotificationToken = async (token) => {
         }
       }
     );
-    
+   
     console.log('FCM token registered successfully');
     return response.data;
   } catch (error) {
     console.error('Error registering FCM token:', error);
-    return { 
-      error: true, 
-      message: error.response?.data?.message || error.message || 'Failed to register notification token' 
+    return {
+      error: true,
+      message: error.response?.data?.message || error.message || 'Failed to register notification token'
     };
   }
 };
@@ -125,10 +127,10 @@ export const unregisterPushNotificationToken = async () => {
     if (!firebaseUser) {
       return { success: true, message: 'Already logged out' };
     }
-    
+   
     // Get a fresh token
     const authToken = await firebaseUser.getIdToken(true);
-    
+   
     // Remove FCM token from backend
     const response = await axios.delete(
       `${API_URL}auth/remove-fcm-token`,
@@ -140,7 +142,7 @@ export const unregisterPushNotificationToken = async () => {
         }
       }
     );
-    
+   
     console.log('FCM token unregistered successfully');
     return response.data;
   } catch (error) {
@@ -149,12 +151,13 @@ export const unregisterPushNotificationToken = async () => {
   }
 };
 
+
 // Helper function to handle API errors
 const handleApiError = (error, customMessage = 'An error occurred') => {
   console.error('API Error:', error);
-  
+ 
   let errorMessage = customMessage;
-  
+ 
   if (error.response) {
     console.error('Error data:', error.response.data);
     console.error('Error status:', error.response.status);
@@ -163,11 +166,7 @@ const handleApiError = (error, customMessage = 'An error occurred') => {
     console.error('Error request:', error.request);
     errorMessage = 'No response from server. Please check your internet connection.';
   }
-  
-  if (error.response?.status === 401 || error.message?.includes('expired')) {
-    throw new Error('Token expired');
-  }
-  
+ 
   return { error: true, message: errorMessage };
 };
 
@@ -175,19 +174,19 @@ const handleApiError = (error, customMessage = 'An error occurred') => {
 const loginUserWithBackend = async (firebaseUser) => {
   try {
     console.log('Logging in with backend for user:', firebaseUser.uid);
-    
+   
     // Get a fresh Firebase token with force refresh
     const token = await firebaseUser.getIdToken(true);
-    
+   
     // Store token securely
     await saveToken(token);
-    
+   
     const userData = {
       email: firebaseUser.email,
       firebaseUid: firebaseUser.uid,
       displayName: firebaseUser.displayName || '',
     };
-    
+   
     // First check if user exists by directly attempting to get user data
     try {
       const meResponse = await axios.get(`${API_URL}auth/me`, {
@@ -198,7 +197,7 @@ const loginUserWithBackend = async (firebaseUser) => {
         },
         timeout: 8000
       });
-      
+     
       return meResponse.data;
     } catch (userCheckError) {
       // User doesn't exist or token issue, try registration
@@ -208,7 +207,7 @@ const loginUserWithBackend = async (firebaseUser) => {
           email: firebaseUser.email,
           firebaseUid: firebaseUser.uid
         });
-        
+       
         // After successful registration, try to get user data again
         const afterRegisterResponse = await axios.get(`${API_URL}auth/me`, {
           headers: {
@@ -217,7 +216,7 @@ const loginUserWithBackend = async (firebaseUser) => {
             'Content-Type': 'application/json'
           }
         });
-        
+       
         return afterRegisterResponse.data;
       } catch (registrationError) {
         // If registration fails, try login as a last resort
@@ -229,14 +228,14 @@ const loginUserWithBackend = async (firebaseUser) => {
           },
           timeout: 10000
         });
-        
+       
         return loginResponse.data;
       }
     }
   } catch (error) {
     console.error('Backend login failed!', error.message);
-    return { 
-      error: true, 
+    return {
+      error: true,
       message: error.message || 'Failed to login with backend',
       firebaseUser: {
         uid: firebaseUser.uid,
@@ -246,6 +245,7 @@ const loginUserWithBackend = async (firebaseUser) => {
     };
   }
 };
+
 
 // Function to register user with backend
 const registerUserWithBackend = async (userData) => {
@@ -257,17 +257,17 @@ const registerUserWithBackend = async (userData) => {
       ...(userData.password && { password: userData.password }),
       ...(userData.userImage && { userImage: userData.userImage }),
     };
-    
+   
     // Get the Firebase token for authorization
     const user = auth.currentUser;
     let token;
-    
+   
     try {
       token = user ? await user.getIdToken(true) : null;
     } catch (tokenError) {
       console.error('Error getting Firebase token:', tokenError);
     }
-    
+   
     const response = await axios.post(`${API_URL}auth/signup`, completeUserData, {
       headers: {
         'Accept': 'application/json',
@@ -276,7 +276,7 @@ const registerUserWithBackend = async (userData) => {
       },
       timeout: 15000
     });
-    
+   
     // If successful, store user data in AsyncStorage for offline access
     if (response.data && (response.data.user || response.data.uid)) {
       try {
@@ -285,21 +285,22 @@ const registerUserWithBackend = async (userData) => {
         console.error('Error storing user data:', storageError);
       }
     }
-    
+   
     return response.data;
   } catch (error) {
     // If the user likely exists (409 Conflict or specific message from server)
     if (
-      (error.response && error.response.status === 409) || 
-      (error.response && error.response.data && error.response.data.message && 
+      (error.response && error.response.status === 409) ||
+      (error.response && error.response.data && error.response.data.message &&
        error.response.data.message.includes('already exists'))
     ) {
       return { success: true, message: 'User already exists' };
     }
-    
+   
     return handleApiError(error, 'Failed to register user with backend');
   }
 };
+
 
 // Function to get current user data
 const getCurrentUser = async () => {
@@ -309,9 +310,11 @@ const getCurrentUser = async () => {
             return { error: true, message: 'Not authenticated' };
         }
 
+
         // Get a fresh token
         const token = await user.getIdToken(true);
         await saveToken(token);
+
 
         try {
             const response = await axios.get(`${API_URL}/auth/me`, {
@@ -321,6 +324,7 @@ const getCurrentUser = async () => {
                     'Content-Type': 'application/json'
                 }
             });
+
 
             if (response.data.success) {
                 return response.data;
@@ -332,7 +336,7 @@ const getCurrentUser = async () => {
                 // Token expired, try to get a new one
                 const newToken = await user.getIdToken(true);
                 await saveToken(newToken);
-                
+               
                 // Retry with new token
                 const retryResponse = await axios.get(`${API_URL}/auth/me`, {
                     headers: {
@@ -341,19 +345,17 @@ const getCurrentUser = async () => {
                         'Content-Type': 'application/json'
                     }
                 });
-                
+               
                 return retryResponse.data;
             }
             throw error;
         }
     } catch (error) {
         console.error('Error in getCurrentUser:', error);
-        if (error.response?.status === 401 || error.message?.includes('expired')) {
-            throw new Error('Token expired');
-        }
         return { error: true, message: error.message };
     }
 };
+
 
 // Main login function
 export const loginUser = async (user, dispatch) => {
@@ -361,17 +363,25 @@ export const loginUser = async (user, dispatch) => {
         // First, authenticate with Firebase
         const userCredential = await auth.signInWithEmailAndPassword(user.email, user.password);
         const firebaseUser = userCredential.user;
-        
+       
         // Use the internal function to login with backend
         const userData = await loginUserWithBackend(firebaseUser);
-        
+       
         if (userData.error) {
             throw new Error(userData.message || "Login failed");
         }
-        
+       
+        // Check if the user account is inactive - improved check covering all cases
+        const userStatus = userData.user?.status || userData.status;
+        if (userStatus === 'inactive') {
+            console.log('Detected inactive account, signing out user');
+            await auth.signOut(); // Sign out the user from Firebase
+            throw new Error('Your account has been deactivated. Please contact support for assistance.');
+        }
+       
         // Get the token that was stored
         const token = await getToken();
-        
+       
         if (token) {
             const decoded = jwtDecode(token);
             dispatch(setCurrentUser(decoded, userData.user || userData));
@@ -392,6 +402,7 @@ export const loginUser = async (user, dispatch) => {
     }
 };
 
+
 // Function to get user profile - Modified to fetch from MongoDB
 export const getUserProfile = async () => {
     try {
@@ -399,6 +410,7 @@ export const getUserProfile = async () => {
         if (!token) {
             throw new Error('Authentication token not found');
         }
+
 
         const response = await axios.get(`${API_URL}/auth/me`, {
             headers: {
@@ -408,11 +420,14 @@ export const getUserProfile = async () => {
             }
         });
 
+
         console.log('MongoDB User Profile Response:', response.data);
+
 
         if (!response.data || !response.data.user) {
             throw new Error('Invalid response format from server');
         }
+
 
         // Return the complete user object from MongoDB
         return response.data.user;
@@ -422,46 +437,47 @@ export const getUserProfile = async () => {
     }
 };
 
+
 // Registration function
 export const registerUser = async (userData, dispatch) => {
     try {
         console.log('Starting registration process for:', userData.email);
-        
+       
         // Register with Firebase first
         const userCredential = await createUserWithEmailAndPassword(
-            auth, 
-            userData.email, 
+            auth,
+            userData.email,
             userData.password
         );
-        
+       
         const firebaseUser = userCredential.user;
-        
+       
         // Update Firebase profile
         if (userData.username) {
             await updateProfile(firebaseUser, {
                 displayName: userData.username
             });
         }
-        
+       
         // Get token
         const token = await firebaseUser.getIdToken(true);
         await saveToken(token);
-        
+       
         // Register with backend
         const backendData = await registerUserWithBackend({
             ...userData,
             firebaseUid: firebaseUser.uid
         });
-        
+       
         if (backendData.error) {
             await firebaseUser.delete();
             throw new Error(backendData.message || "Registration failed");
         }
-        
+       
         // Set user in Redux store using the backend response data
         const decoded = jwtDecode(token);
         dispatch(setCurrentUser(decoded, backendData.user));
-        
+       
         // Return the complete user data
         return backendData.user;
     } catch (error) {
@@ -469,6 +485,7 @@ export const registerUser = async (userData, dispatch) => {
         throw error;
     }
 };
+
 
 // Function to update user profile
 export const updateUserProfile = async (userData) => {
@@ -478,19 +495,21 @@ export const updateUserProfile = async (userData) => {
     if (!firebaseUser) {
       return { error: true, message: 'Not authenticated. Please log in again.' };
     }
-    
+   
     // Prepare request data
     const requestData = {
       username: userData.username,
       firebaseUid: firebaseUser.uid,
-      ...(userData.userImage && { userImage: userData.userImage })
+      ...(userData.userImage && { userImage: userData.userImage }),
+      ...(userData.mobileNumber !== undefined && { mobileNumber: userData.mobileNumber }),
+      ...(userData.address !== undefined && { address: userData.address })
     };
-    
+   
     // Get a fresh token
     const token = await firebaseUser.getIdToken(true);
     await saveToken(token);
-    
-    const response = await axios.put(`${API_URL}auth/updateUser`, requestData, {
+   
+    const response = await axios.put(`${API_URL}/auth/updateUser`, requestData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json',
@@ -498,28 +517,30 @@ export const updateUserProfile = async (userData) => {
       },
       timeout: 15000
     });
-    
+   
     // Update the Firebase profile to stay in sync
     if (response.data && response.data.user) {
       try {
         const profileUpdates = {
           displayName: userData.username
         };
-        
+       
         if (userData.userImage) {
           profileUpdates.photoURL = userData.userImage;
         }
-        
+       
         await updateProfile(firebaseUser, profileUpdates);
-        
+       
         // Update AsyncStorage data
         const storedUserData = await AsyncStorage.getItem('userData');
         if (storedUserData) {
           const parsedData = JSON.parse(storedUserData);
-          const updatedData = { 
-            ...parsedData, 
+          const updatedData = {
+            ...parsedData,
             username: userData.username,
-            ...(userData.userImage && { userImage: userData.userImage })
+            ...(userData.userImage && { userImage: userData.userImage }),
+            ...(userData.mobileNumber !== undefined && { mobileNumber: userData.mobileNumber }),
+            ...(userData.address !== undefined && { address: userData.address })
           };
           await AsyncStorage.setItem('userData', JSON.stringify(updatedData));
         }
@@ -527,18 +548,19 @@ export const updateUserProfile = async (userData) => {
         console.error('Error syncing profile data:', updateError);
       }
     }
-    
+   
     return response.data;
   } catch (error) {
     return handleApiError(error, 'Failed to update profile');
   }
 };
 
+
 export const logoutUser = async (dispatch) => {
   try {
       // Unregister push notification token
       await unregisterPushNotificationToken();
-      
+     
       // Continue with the rest of your logout logic
       await removeToken();
       await AsyncStorage.removeItem("userData");
@@ -548,6 +570,7 @@ export const logoutUser = async (dispatch) => {
       console.error("Logout error:", error);
   }
 };
+
 
 export const setCurrentUser = (decoded, user) => {
     return {

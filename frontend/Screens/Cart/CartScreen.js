@@ -8,6 +8,7 @@ import { API_URL } from '@env';
 import * as SecureStore from 'expo-secure-store';
 import { useNavigation } from '@react-navigation/native';
 import { setSelectedItems } from '../../Redux/Actions/orderActions';
+import { initDatabase, getCartItems } from '../../services/database';
 
 const CartScreen = () => {
   const dispatch = useDispatch();
@@ -24,24 +25,40 @@ const CartScreen = () => {
   });
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = await SecureStore.getItemAsync("jwt");
-      const userData = await SecureStore.getItemAsync("userData");
-      
-      if (!token || !userData) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'signin' }],
-        });
-        return;
-      }
+    const initCart = async () => {
+      try {
+        const token = await SecureStore.getItemAsync("jwt");
+        const userData = await SecureStore.getItemAsync("userData");
+        
+        if (!token || !userData) {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'signin' }],
+          });
+          return;
+        }
 
-      // Fetch both order list and count
-      dispatch(getUserOrderList());
-      dispatch(fetchOrderCount());
+        // Initialize SQLite and load cached data
+        await initDatabase();
+        const userDataObj = JSON.parse(userData);
+        const cachedItems = await getCartItems(userDataObj._id);
+        
+        if (cachedItems.length > 0) {
+          dispatch({
+            type: GET_ORDER_LIST_SUCCESS,
+            payload: cachedItems
+          });
+        }
+
+        // Fetch fresh data from server
+        dispatch(getUserOrderList());
+        dispatch(fetchOrderCount());
+      } catch (error) {
+        console.error('Error initializing cart:', error);
+      }
     };
     
-    checkAuth();
+    initCart();
   }, [dispatch]);
 
   const handleQuantityUpdate = async (orderId, newQuantity) => {

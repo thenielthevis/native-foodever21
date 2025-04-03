@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, TextInput, TouchableOpacity, StatusBar, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, DrawerActions } from '@react-navigation/native';
 
 const Header = ({ isScrolled, onSearchPress }) => {
   const navigation = useNavigation();
@@ -14,6 +14,14 @@ const Header = ({ isScrolled, onSearchPress }) => {
     }
   };
 
+  const openDrawer = () => {
+    try {
+      navigation.dispatch(DrawerActions.toggleDrawer());
+    } catch (error) {
+      console.log('Drawer error:', error);
+    }
+  };
+
   return (
     <Animated.View style={[
       styles.searchContainer,
@@ -21,10 +29,26 @@ const Header = ({ isScrolled, onSearchPress }) => {
     ]}>
       <TouchableOpacity 
         style={[
+          styles.menuButton,
+          isScrolled && styles.menuButtonScrolled
+        ]}
+        onPress={openDrawer}
+        activeOpacity={0.7}
+      >
+        <Ionicons 
+          name="menu" 
+          size={24} 
+          color={isScrolled ? "#333" : "#fff"} 
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={[
           styles.searchWrapper,
           isScrolled ? styles.searchWrapperScrolled : styles.searchWrapperTransparent
         ]}
         onPress={handleSearchPress}
+        activeOpacity={0.8}
       >
         <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
         <TextInput
@@ -35,12 +59,14 @@ const Header = ({ isScrolled, onSearchPress }) => {
           pointerEvents="none"
         />
       </TouchableOpacity>
+      
       <TouchableOpacity 
         style={[
           styles.filterButton,
           isScrolled ? styles.filterButtonScrolled : styles.filterButtonTransparent
         ]}
         onPress={handleSearchPress}
+        activeOpacity={0.7}
       >
         <Ionicons name="filter" size={24} color="#ff9900" />
       </TouchableOpacity>
@@ -58,18 +84,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1000,
-    paddingTop: StatusBar.currentHeight + 1,
+    paddingTop: StatusBar.currentHeight + 10,
     paddingBottom: 10,
+    height: StatusBar.currentHeight + 60,
   },
   searchContainerScrolled: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
-    elevation: 3,
+    elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
   },
   searchWrapper: {
     flex: 1,
@@ -106,6 +133,26 @@ const styles = StyleSheet.create({
   },
   filterButtonTransparent: {
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  menuButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    transform: [{scale: 1}],
+  },
+  menuButtonScrolled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderWidth: 1,
+    borderColor: '#eee',
   }
 });
 

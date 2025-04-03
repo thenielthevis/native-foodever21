@@ -1,69 +1,186 @@
-// Components/CustomDrawerContent.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  ImageBackground,
   Image,
   TouchableOpacity,
   StyleSheet,
+  Linking,
+  Alert,
 } from 'react-native';
 import {
   DrawerContentScrollView,
   DrawerItemList,
 } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
-import { auth } from '../firebaseConfig';
+import * as SecureStore from 'expo-secure-store';
+import { auth } from '../../../firebaseConfig';
+
+import { COLORS, FONTS, SHADOWS } from '../../../constants/theme';
 
 const CustomDrawerContent = props => {
-  const user = auth.currentUser;
-  const displayName = user?.displayName || 'Guest User';
-  const email = user?.email || 'No email available';
-  const photoURL = user?.photoURL;
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userDataString = await SecureStore.getItemAsync('userData');
+        if (userDataString) {
+          const parsedData = JSON.parse(userDataString);
+          setUserData(parsedData);
+        }
+      } catch (error) {
+        console.log('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const handleSignOut = async () => {
-    try {
-      await auth.signOut();
-      props.navigation.navigate('signin');
-    } catch (error) {
-      console.error('Error signing out: ', error);
+    Alert.alert(
+      'Sign Out', 
+      'Are you sure you want to sign out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Sign Out',
+          onPress: async () => {
+            try {
+              await SecureStore.deleteItemAsync('userData');
+              await SecureStore.deleteItemAsync('jwt');
+              setUserData(null);
+              props.navigation.navigate('Home');
+            } catch (error) {
+              console.log('Error signing out:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSocialMedia = (platform) => {
+    let url;
+    switch(platform) {
+      case 'facebook':
+        url = 'https://www.facebook.com/foodever21';
+        break;
+      case 'instagram':
+        url = 'https://www.instagram.com/foodever21';
+        break;
+      case 'twitter':
+        url = 'https://www.twitter.com/foodever21';
+        break;
+      default:
+        return;
     }
+    Linking.openURL(url).catch(err => console.error('Error opening URL:', err));
   };
 
   return (
     <View style={styles.container}>
+      <View style={styles.headerContainer}>
+        <View style={styles.logoWrapper}>
+          <Image
+            source={require('../../../assets/logo.png')}
+            style={styles.logo}
+          />
+        </View>
+        
+        <View style={styles.brandTextContainer}>
+          <Text style={styles.brandName}>FOODEVER 21</Text>
+          <View style={styles.taglineContainer}>
+            <View style={styles.taglineDot}></View>
+            <Text style={styles.tagline}>Fresh • Delicious • Homemade</Text>
+            <View style={styles.taglineDot}></View>
+          </View>
+        </View>
+        
+        {userData ? (
+          <View style={styles.userContainer}>
+            <View style={styles.userImageContainer}>
+              <Image
+                source={
+                  userData.userImage && userData.userImage.trim() !== ''
+                    ? { uri: userData.userImage }
+                    : require('../../../assets/logo.png')
+                }
+                style={styles.userImg}
+              />
+            </View>
+            <View style={styles.userDetails}>
+              <Text style={styles.userName}>{userData.username || 'User'}</Text>
+              <Text style={styles.userEmail}>{userData.email || ''}</Text>
+              <TouchableOpacity 
+                style={styles.viewProfileButton}
+                onPress={() => props.navigation.getParent()?.navigate('UserProfile')}
+              >
+                <Text style={styles.viewProfileText}>My Profile</Text>
+                <Ionicons name="chevron-forward" size={12} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity 
+            style={styles.signInButton}
+            onPress={() => props.navigation.getParent()?.navigate('SignIn')}
+          >
+            <Text style={styles.signInText}>Sign In / Sign Up</Text>
+            <View style={styles.signInIconContainer}>
+              <Ionicons name="arrow-forward" size={16} color="#fff" />
+            </View>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.divider} />
+
       <DrawerContentScrollView
         {...props}
-        contentContainerStyle={styles.drawerScrollView}>
-        <ImageBackground
-          source={require('../assets/Home/bg-img2.jpg')}
-          style={styles.bgImage}>
-          <Image
-            source={photoURL ? { uri: photoURL } : require('../assets/Home/logo.png')}
-            style={styles.userAvatar}
-          />
-          <Text style={styles.userName}>{displayName}</Text>
-          <Text style={styles.userEmail}>{email}</Text>
-          <View style={styles.userInfoDivider} />
-        </ImageBackground>
-
+        contentContainerStyle={styles.drawerContent}
+        scrollEnabled={true}
+      >
         <View style={styles.drawerItemsContainer}>
           <DrawerItemList {...props} />
         </View>
       </DrawerContentScrollView>
 
-      <View style={styles.bottomDrawerSection}>
-        <TouchableOpacity 
-          style={styles.signOutButton} 
-          onPress={handleSignOut}
-        >
-          <View style={styles.signOutContainer}>
-            <Ionicons name="exit-outline" size={22} color="#ff5252" />
-            <Text style={styles.signOutText}>Sign Out</Text>
+      <View style={styles.footerContainer}>
+        <View style={styles.socialSection}>
+          <Text style={styles.socialTitleText}>Follow Us</Text>
+          <View style={styles.socialMediaContainer}>
+            <TouchableOpacity 
+              style={styles.socialButton}
+              onPress={() => handleSocialMedia('facebook')}>
+              <Ionicons name="logo-facebook" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.socialButton}
+              onPress={() => handleSocialMedia('instagram')}>
+              <Ionicons name="logo-instagram" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.socialButton}
+              onPress={() => handleSocialMedia('twitter')}>
+              <Ionicons name="logo-twitter" size={20} color="#fff" />
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-        
-        <Text style={styles.versionText}>App Version 1.0.0</Text>
+        </View>
+
+        {userData && (
+          <TouchableOpacity
+            style={styles.signOutButton}
+            onPress={handleSignOut}>
+            <View style={styles.signOutContent}>
+              <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -72,65 +189,196 @@ const CustomDrawerContent = props => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  drawerScrollView: {
-    backgroundColor: '#f8f8f8',
-  },
-  bgImage: {
-    padding: 20,
+  headerContainer: {
     paddingTop: 30,
-    backgroundColor: '#ff9900',
+    paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
   },
-  userAvatar: {
-    height: 80,
-    width: 80,
-    borderRadius: 40,
+  logoWrapper: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 10,
-    borderWidth: 2,
-    borderColor: '#fff',
+    ...SHADOWS.light,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
-  userName: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  logo: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+  },
+  brandTextContainer: {
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  brandName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.primary,
+    letterSpacing: 1,
     marginBottom: 5,
   },
-  userEmail: {
-    color: '#fff',
-    fontSize: 14,
-  },
-  userInfoDivider: {
-    marginTop: 15,
-    paddingBottom: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.5)',
-  },
-  drawerItemsContainer: {
-    flex: 1,
-    paddingTop: 10,
-  },
-  bottomDrawerSection: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  signOutButton: {
-    paddingVertical: 15,
-  },
-  signOutContainer: {
+  taglineContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  signOutText: {
-    fontSize: 15,
-    marginLeft: 5,
-    color: '#ff5252',
+  taglineDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: COLORS.darkGray,
+    opacity: 0.5,
+    marginHorizontal: 5,
   },
-  versionText: {
+  tagline: {
+    color: COLORS.darkGray,
     fontSize: 12,
-    color: '#999',
+    letterSpacing: 0.5,
+    fontStyle: 'italic',
+  },
+  userContainer: {
+    padding: 15,
+    alignItems: 'center',
+    width: '100%',
+  },
+  userImageContainer: {
+    padding: 3,
+    borderRadius: 35,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    backgroundColor: 'white',
+    marginBottom: 10,
+    ...SHADOWS.light,
+  },
+  userImg: {
+    height: 60,
+    width: 60,
+    borderRadius: 30,
+  },
+  userDetails: {
+    alignItems: 'center',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.darkGray,
+    marginBottom: 2,
+  },
+  userEmail: {
+    fontSize: 12,
+    color: COLORS.gray,
+    marginBottom: 12,
+  },
+  viewProfileButton: {
+    flexDirection: 'row',
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+  },
+  viewProfileText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  signInButton: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 10,
+    width: '80%',
+    ...SHADOWS.light
+  },
+  signInText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  signInIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  divider: {
+    height: 1,
+    width: '90%',
+    backgroundColor: '#f0f0f0',
+    alignSelf: 'center',
+    marginTop: 5,
+    marginBottom: 5,
+  },
+  drawerContent: {
+    paddingTop: 10,
+  },
+  drawerItemsContainer: {
+    flex: 1,
+    paddingHorizontal: 10,
+  },
+  footerContainer: {
+    padding: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  socialSection: {
+    marginBottom: 15
+  },
+  socialTitleText: {
+    color: COLORS.darkGray,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
     textAlign: 'center',
-    marginTop: 15,
+  },
+  socialMediaContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  socialButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+    ...SHADOWS.light,
+  },
+  signOutButton: {
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    backgroundColor: 'rgba(255, 59, 48, 0.05)',
+  },
+  signOutContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signOutText: {
+    color: COLORS.error,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
   },
 });
 

@@ -17,6 +17,8 @@ import { auth } from "../../firebaseConfig";
 import { GOOGLE_SIGNIN_CONFIG } from '../../google-auth-config';
 import { fetchCartCount } from '../../Redux/Actions/cartActions';
 
+import 'expo-dev-client';
+
 const Signin = ({ navigation }) => {
   const dispatch = useDispatch(); // Add this line
   // State for form inputs and validation
@@ -247,7 +249,7 @@ const Signin = ({ navigation }) => {
 
   // Handle sign up
   const handleSignUp = () => {
-    navigation.navigate('signup'); // Navigate to the sign-up screen
+    navigation.navigate('Signup'); // Navigate to the sign-up screen
   };
 
   // Add a helper function to check stored data

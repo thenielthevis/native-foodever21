@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, 
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Alert, Image, Dimensions, ActivityIndicator
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import { CommonActions } from '@react-navigation/native';
 import { getUserProfile } from '../../../Redux/Actions/Auth.actions';
 import axios from 'axios';
 import { API_URL } from '@env';
@@ -11,8 +12,10 @@ import { clearCartData } from '../../../Redux/Actions/cartActions';
 import { placeOrder } from '../../../Redux/Actions/orderActions';
 import * as SecureStore from 'expo-secure-store';
 
+
 const SHIPPING_FEE = 50;
 const windowWidth = Dimensions.get('window').width;
+
 
 const Confirm = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -20,6 +23,7 @@ const Confirm = ({ navigation }) => {
   const [selectedPayment, setSelectedPayment] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const selectedOrders = useSelector(state => state.cart.selectedOrders || []);
+
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -31,14 +35,14 @@ const Confirm = ({ navigation }) => {
           address: userProfile.address,
           email: userProfile.email
         });
-        
+       
         if (!userProfile.mobileNumber || !userProfile.address) {
           Alert.alert(
             'Missing Information',
             'Please update your profile with mobile number and address.'
           );
         }
-        
+       
         setUserData(userProfile);
       } catch (error) {
         console.error('[Confirm] Error fetching user profile:', error);
@@ -51,6 +55,7 @@ const Confirm = ({ navigation }) => {
     fetchUserData();
   }, []);
 
+
   if (!userData) {
     return (
       <View style={styles.centered}>
@@ -59,18 +64,22 @@ const Confirm = ({ navigation }) => {
     );
   }
 
+
   const calculateItemTotal = (item) => {
     const price = item.product.discountedPrice || item.product.price;
     return price * item.quantity;
   };
 
+
   const calculateSubtotal = () => {
     return selectedOrders.reduce((total, item) => total + calculateItemTotal(item), 0);
   };
 
+
   const calculateGrandTotal = () => {
     return calculateSubtotal() + SHIPPING_FEE;
   };
+
 
   const handlePlaceOrder = async () => {
     if (!selectedPayment || !userData.mobileNumber || !userData.address) {
@@ -78,7 +87,9 @@ const Confirm = ({ navigation }) => {
       return;
     }
 
+
     setIsProcessing(true);
+
 
     try {
       const orderData = {
@@ -93,20 +104,51 @@ const Confirm = ({ navigation }) => {
         total: calculateGrandTotal()
       };
 
-      await dispatch(placeOrder(orderData, navigation));
+
+      // Dispatch the order action without passing navigation
+      await dispatch(placeOrder(orderData));
+     
+      // Clear the cart after successful order
+      dispatch(clearCartData());
+     
+      // Show success message
+      Alert.alert(
+        "Order Placed Successfully",
+        "Your order has been placed successfully!",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              // Use CommonActions to reset navigation and go directly to the main navigator with Home selected
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [
+                    {
+                      name: 'Home',
+                    }
+                  ]
+                })
+              );
+            }
+          }
+        ]
+      );
     } catch (error) {
       console.error('Order placement error:', error);
+      Alert.alert("Error", "Failed to place your order. Please try again.");
     } finally {
       setIsProcessing(false);
     }
   };
+
 
   const renderOrderItems = () => (
     <View style={styles.orderSection}>
       <Text style={styles.sectionTitle}>Order Summary</Text>
       {selectedOrders.map((item) => (
         <View key={item.order_id} style={styles.orderItem}>
-          <Image 
+          <Image
             source={{ uri: item.product.image }}
             style={styles.productImage}
             defaultSource={require('../../../assets/Home/placeholder.png')}
@@ -128,46 +170,49 @@ const Confirm = ({ navigation }) => {
     </View>
   );
 
+
   const renderPaymentMethods = () => (
     <View style={styles.paymentSection}>
       <Text style={styles.sectionTitle}>Select Payment Method</Text>
       <View style={styles.paymentOptions}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             styles.paymentOption,
             selectedPayment === 'cash_on_delivery' && styles.selectedPayment
           ]}
           onPress={() => setSelectedPayment('cash_on_delivery')}
         >
-          <Image 
+          <Image
             source={require('../../../assets/images/cod.png')}
             style={styles.paymentIcon}
           />
           <Text>Cash on Delivery</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[
             styles.paymentOption,
             selectedPayment === 'credit_card' && styles.selectedPayment
           ]}
           onPress={() => setSelectedPayment('credit_card')}
         >
-          <Image 
+          <Image
             source={require('../../../assets/images/credit-card.png')}
             style={styles.paymentIcon}
           />
           <Text>Credit Card</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[
             styles.paymentOption,
             selectedPayment === 'gcash' && styles.selectedPayment
           ]}
           onPress={() => setSelectedPayment('gcash')}
         >
-          <Image 
+          <Image
             source={require('../../../assets/images/gcash.png')}
             style={styles.paymentIcon}
           />
@@ -177,12 +222,13 @@ const Confirm = ({ navigation }) => {
     </View>
   );
 
+
   const renderBottomNav = () => (
     <View style={styles.bottomNav}>
       <TouchableOpacity
         style={[
           styles.nextButton,
-          (!userData?.mobileNumber || !userData?.address || !selectedPayment || isProcessing) && 
+          (!userData?.mobileNumber || !userData?.address || !selectedPayment || isProcessing) &&
           styles.nextButtonDisabled
         ]}
         onPress={handlePlaceOrder}
@@ -198,6 +244,7 @@ const Confirm = ({ navigation }) => {
       </TouchableOpacity>
     </View>
   );
+
 
   return (
     <View style={styles.container}>
@@ -222,8 +269,10 @@ const Confirm = ({ navigation }) => {
           </View>
         </View>
 
+
         {renderOrderItems()}
         {renderPaymentMethods()}
+
 
         <View style={styles.totalSection}>
           <View style={styles.totalRow}>
@@ -243,10 +292,12 @@ const Confirm = ({ navigation }) => {
         </View>
       </ScrollView>
 
+
       {renderBottomNav()}
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -341,6 +392,7 @@ const styles = StyleSheet.create({
   paymentSection: {
     padding: 15,
     backgroundColor: '#fff',
+    marginTop: 10,
   },
   paymentOptions: {
     flexDirection: 'row',

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  Image, 
-  TouchableOpacity, 
+import {
+  StyleSheet,
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   Alert,
-  StatusBar 
+  StatusBar
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from "../../firebaseConfig";
@@ -21,6 +21,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import { SET_CART_COUNT } from '../../Redux/Constants/cartConstants';
 import { clearCartData } from '../../Redux/Actions/cartActions';
+
 
 // Color palette
 const COLORS = {
@@ -36,6 +37,7 @@ const COLORS = {
   error: '#FF5252'
 };
 
+
 const UserProfile = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [user, setUser] = useState(null);
@@ -43,55 +45,45 @@ const UserProfile = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const { dispatch } = useUser();
 
+
   const fetchUserData = async () => {
     setLoading(true);
     try {
       const token = await SecureStore.getItemAsync("jwt");
       const userDataStr = await SecureStore.getItemAsync("userData");
-      
-      // If no token or userData, just set user to null and return
+     
       if (!token || !userDataStr) {
-        setUser(null);
-        setBackendUser(null);
-        setLoading(false);
-        return;
+        throw new Error('No authentication data found');
       }
 
-      try {
-        const userData = JSON.parse(userDataStr);
-        
-        // Set basic user info from stored data
-        setUser({
-          uid: userData.firebaseUid,
-          displayName: userData.username,
-          email: userData.email,
-          photoURL: 'https://via.placeholder.com/150',
-          createdAt: new Date().toISOString(),
-        });
-        
-        // Try to fetch additional data from backend
-        try {
-          const userProfile = await getUserProfile(token);
-          if (!userProfile.error) {
-            setBackendUser(userProfile);
-          }
-        } catch (backendError) {
-          console.log("Backend fetch failed, using stored data only");
-        }
-      } catch (parseError) {
-        console.log("Error parsing stored user data, clearing invalid data");
-        await SecureStore.deleteItemAsync("userData");
-        setUser(null);
-        setBackendUser(null);
+
+      const userData = JSON.parse(userDataStr);
+     
+      // Set basic user info from stored data
+      setUser({
+        uid: userData.firebaseUid,
+        displayName: userData.username,
+        email: userData.email,
+        photoURL: 'https://via.placeholder.com/150', // You might want to add a photo URL to your user data
+        createdAt: new Date().toISOString(),
+      });
+     
+      // Fetch additional data from backend
+      const userProfile = await getUserProfile(token);
+      if (!userProfile.error) {
+        setBackendUser(userProfile);
       }
     } catch (error) {
-      console.log("User data fetch failed:", error.message);
-      setUser(null);
-      setBackendUser(null);
+      console.error("Failed to fetch user data:", error);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'signin' }],
+      });
     } finally {
       setLoading(false);
     }
   };
+
 
   // Use useFocusEffect for better performance
   useFocusEffect(
@@ -101,22 +93,23 @@ const UserProfile = ({ navigation }) => {
     }, [])
   );
 
+
   const handleSignOut = async () => {
     try {
       // First clear Redux state
       dispatch(clearCartData());
       dispatch({ type: SET_CART_COUNT, payload: 0 });
-      
+     
       // Then clear storage
       await Promise.all([
         SecureStore.deleteItemAsync("jwt"),
         SecureStore.deleteItemAsync("userData")
       ]);
-      
+     
       // Finally logout from auth
       await auth.signOut();
       await logoutUser(dispatch);
-      
+     
       navigation.reset({
         index: 0,
         routes: [{ name: 'signin' }],
@@ -127,12 +120,14 @@ const UserProfile = ({ navigation }) => {
     }
   };
 
+
   const handleEditProfile = () => {
-    navigation.navigate('EditProfile', { 
+    navigation.navigate('EditProfile', {
       user: user,
       backendUser: backendUser
     });
   };
+
 
   if (loading) {
     return (
@@ -146,33 +141,27 @@ const UserProfile = ({ navigation }) => {
     );
   }
 
-  if (!user && !loading) {
+
+  if (!user) {
     return (
       <LinearGradient
         colors={[COLORS.primary, COLORS.secondary, COLORS.background]}
         style={styles.centeredContainer}
       >
         <StatusBar barStyle="light-content" />
-        <View style={styles.messageContainer}>
-          <Text style={styles.messageText}>
-            Please sign in to view your profile
-          </Text>
-          <TouchableOpacity
-            style={styles.signInButton}
-            onPress={() => navigation.navigate('signin')}
-          >
-            <Text style={styles.signInButtonText}>Sign In</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.navigate('Home')}
-          >
-            <Text style={styles.backButtonText}>Back to Home</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.errorText}>
+          You are not signed in. Please sign in to view your profile.
+        </Text>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('Signin')}
+        >
+          <Text style={styles.actionButtonText}>Go to Sign In</Text>
+        </TouchableOpacity>
       </LinearGradient>
     );
   }
+
 
   return (
     <View style={styles.container}>
@@ -182,8 +171,8 @@ const UserProfile = ({ navigation }) => {
         style={[styles.gradientBackground, { paddingTop: insets.top }]}
       >
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.iconButton} 
+          <TouchableOpacity
+            style={styles.iconButton}
             onPress={() => navigation.goBack()}
           >
             <FontAwesome name="arrow-left" size={22} color={COLORS.text.dark} />
@@ -192,19 +181,34 @@ const UserProfile = ({ navigation }) => {
           <View style={styles.iconButton} />
         </View>
 
-        <ScrollView 
+
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.profileCard}>
-            <Image 
-              source={{ uri: user.photoURL }} 
-              style={styles.profileImage} 
+            <Image
+              source={{ uri: user.photoURL }}
+              style={styles.profileImage}
             />
             <Text style={styles.displayName}>{user.displayName}</Text>
             <Text style={styles.email}>{user.email}</Text>
-            
-            <TouchableOpacity 
+           
+            {backendUser?.mobileNumber && (
+              <View style={styles.infoRow}>
+                <FontAwesome name="phone" size={16} color={COLORS.primary} />
+                <Text style={styles.infoText}>{backendUser.mobileNumber}</Text>
+              </View>
+            )}
+           
+            {backendUser?.address && (
+              <View style={styles.infoRow}>
+                <FontAwesome name="map-marker" size={16} color={COLORS.primary} />
+                <Text style={styles.infoText}>{backendUser.address}</Text>
+              </View>
+            )}
+           
+            <TouchableOpacity
               style={styles.primaryButton}
               onPress={handleEditProfile}
             >
@@ -220,7 +224,8 @@ const UserProfile = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.signOutButton}
             onPress={handleSignOut}
           >
@@ -236,12 +241,14 @@ const UserProfile = ({ navigation }) => {
           </TouchableOpacity>
         </ScrollView>
 
+
         {/* Bottom Navigation */}
         <BottomNav navigation={navigation} activeRoute="Profile" />
       </LinearGradient>
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -380,39 +387,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  messageContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    padding: 20,
-    borderRadius: 10,
+  infoRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    width: '90%',
-  },
-  messageText: {
-    fontSize: 18,
-    color: COLORS.text.dark,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  signInButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
     marginBottom: 10,
+    paddingHorizontal: 20,
   },
-  signInButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  backButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-  },
-  backButtonText: {
+  infoText: {
+    fontSize: 15,
     color: COLORS.text.medium,
-    fontSize: 16,
-  }
+    marginLeft: 10,
+    flexShrink: 1,
+  },
 });
+
 
 export default UserProfile;

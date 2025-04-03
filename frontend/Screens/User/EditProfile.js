@@ -19,32 +19,35 @@ import axios from 'axios';
 import { API_URL } from '@env';
 import { auth } from '../../firebaseConfig';
 
+
 const EditProfile = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const { user, backendUser } = route.params;
-  
+ 
   const [username, setUsername] = useState(backendUser?.username || user?.displayName || '');
   const [image, setImage] = useState(null);
   const [imageURI, setImageURI] = useState(backendUser?.userImage || user?.photoURL || null);
+  const [mobileNumber, setMobileNumber] = useState(backendUser?.mobileNumber || '');
+  const [address, setAddress] = useState(backendUser?.address || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+ 
   const pickImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+     
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please allow access to your photo library to change your profile picture.');
         return;
       }
-      
+     
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.7,
       });
-      
+     
       if (!result.canceled && result.assets && result.assets[0]) {
         console.log('Selected image:', result.assets[0].uri);
         setImageURI(result.assets[0].uri);
@@ -55,30 +58,30 @@ const EditProfile = ({ route, navigation }) => {
       Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
-  
+ 
   const uploadImage = async () => {
     if (!image) return null;
-    
+   
     try {
       console.log('Uploading image to server...');
-      
+     
       const formData = new FormData();
       formData.append('image', {
         uri: image.uri,
         type: 'image/jpeg',
         name: 'profile-image.jpg',
       });
-      
+     
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) {
         throw new Error('Not authenticated');
       }
-      
+     
       const token = await firebaseUser.getIdToken(true);
-      
+     
       const uploadResponse = await axios.post(
-        `${API_URL}auth/upload-avatar`, 
-        formData, 
+        `${API_URL}auth/upload-avatar`,
+        formData,
         {
           headers: {
             'Accept': 'application/json',
@@ -88,50 +91,52 @@ const EditProfile = ({ route, navigation }) => {
           timeout: 30000
         }
       );
-      
+     
       console.log('Image upload response:', uploadResponse.data);
-      
+     
       return uploadResponse.data.secure_url;
     } catch (error) {
       console.error('Error uploading image:', error);
       throw new Error('Failed to upload profile image');
     }
   };
-  
+ 
   const handleSave = async () => {
     if (!username.trim()) {
       setError('Username cannot be empty');
       return;
     }
-    
+   
     if (username.length < 3) {
       setError('Username must be at least 3 characters long');
       return;
     }
-    
+   
     try {
       setLoading(true);
       setError('');
-      
+     
       console.log('Firebase UID from route params:', user?.uid);
       console.log('Backend User ID:', backendUser?._id);
-      
+     
       let imageUrl = null;
       if (image) {
         imageUrl = await uploadImage();
       }
-      
-      const updateData = { 
+     
+      const updateData = {
         username,
-        firebaseUid: user?.uid
+        firebaseUid: user?.uid,
+        mobileNumber: mobileNumber.trim(),
+        address: address.trim()
       };
-      
+     
       if (imageUrl) {
         updateData.userImage = imageUrl;
       }
-      
+     
       const response = await updateUserProfile(updateData);
-      
+     
       if (response.error) {
         console.error('Update profile failed:', response);
         setError(response.message || 'Failed to update profile');
@@ -160,15 +165,15 @@ const EditProfile = ({ route, navigation }) => {
       setLoading(false);
     }
   };
-  
+ 
   return (
     <LinearGradient
       colors={['#FF8C42', '#F9A826', '#FFF1D0']}
       style={[styles.container, { paddingTop: insets.top }]}
     >
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <FontAwesome name="arrow-left" size={24} color="#FF8C42" />
@@ -176,14 +181,14 @@ const EditProfile = ({ route, navigation }) => {
         <Text style={styles.headerTitle}>Edit Profile</Text>
         <View style={styles.rightPlaceholder} />
       </View>
-      
+     
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.formContainer}>
           <TouchableOpacity onPress={pickImage} style={styles.imageContainer}>
             {imageURI ? (
-              <Image 
-                source={{ uri: imageURI }} 
-                style={styles.profileImage} 
+              <Image
+                source={{ uri: imageURI }}
+                style={styles.profileImage}
               />
             ) : (
               <View style={styles.placeholderImage}>
@@ -194,9 +199,9 @@ const EditProfile = ({ route, navigation }) => {
               <FontAwesome name="camera" size={16} color="#FFF" />
             </View>
           </TouchableOpacity>
-          
+         
           <Text style={styles.changePhotoText}>Tap to change photo</Text>
-          
+         
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Username</Text>
             <TextInput
@@ -207,10 +212,36 @@ const EditProfile = ({ route, navigation }) => {
               placeholderTextColor="#999"
             />
           </View>
-          
+         
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Mobile Number</Text>
+            <TextInput
+              style={styles.input}
+              value={mobileNumber}
+              onChangeText={setMobileNumber}
+              placeholder="Enter mobile number"
+              placeholderTextColor="#999"
+              keyboardType="phone-pad"
+            />
+          </View>
+         
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Address</Text>
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              value={address}
+              onChangeText={setAddress}
+              placeholder="Enter your address"
+              placeholderTextColor="#999"
+              multiline={true}
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+          </View>
+         
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          
-          <TouchableOpacity 
+         
+          <TouchableOpacity
             style={styles.saveButtonContainer}
             onPress={handleSave}
             disabled={loading}
@@ -236,6 +267,7 @@ const EditProfile = ({ route, navigation }) => {
     </LinearGradient>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -367,6 +399,11 @@ const styles = StyleSheet.create({
   buttonIcon: {
     marginRight: 8,
   },
+  multilineInput: {
+    height: 100,
+    paddingTop: 12,
+  },
 });
+
 
 export default EditProfile;

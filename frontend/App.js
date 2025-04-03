@@ -17,11 +17,19 @@ import CartScreen from './Screens/Cart/CartScreen';
 import Payment from './Screens/Cart/Checkout/Payment';
 import Confirm from './Screens/Cart/Checkout/Confirm';
 import Checkout from './Screens/Cart/Checkout/Checkout';
+import AdminHome from './Screens/Admin/AdminHome';  // Add this import
+import AdminOrders from './Screens/Admin/AdminOrders';  // Add this import
+import AdminUsers from './Screens/Admin/AdminUsers';  // Add this import
+import AdminRevenue from './Screens/Admin/AdminRevenue';  // Add this import
+import AdminProducts from './Screens/Admin/AdminProducts';  // Add this import
 
 // Add these imports for push notifications
 import { useState, useEffect } from 'react';
 import { registerForPushNotificationsAsync, setupNotifications } from './utils/pushNotifications';
 import { auth } from './firebaseConfig'; 
+// Import DrawerNavigator
+import DrawerNavigator from './Navigators/DrawerNavigator';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const Stack = createNativeStackNavigator();
 
@@ -59,50 +67,56 @@ export default function App() {
   }, []);
   
   return (
-    <Provider store={store}>
-      <UserProvider>
-        <SafeAreaProvider>
-          <NavigationContainer>
-            <StatusBar style="auto" />
-            <Stack.Navigator 
-              initialRouteName="Home"
-              screenOptions={{
-                headerShown: false
-              }}
-            >
-              <Stack.Screen name="Home" component={Home} />
-              <Stack.Screen name="ProductDetails" component={ProductDetails} />
-              <Stack.Screen name="Search" component={Search} />
-              <Stack.Screen name="signin" component={Signin} />
-              <Stack.Screen name="signup" component={Signup} />
-              <Stack.Screen name="profile" component={UserProfile} />
-              <Stack.Screen name="EditProfile" component={EditProfile} />
-              <Stack.Screen 
-                name="Cart" 
-                component={CartScreen}
-                options={{ headerShown: true }}
-              />
-              <Stack.Screen 
-                name="Confirm" 
-                component={Confirm}
-                options={{ 
-                  headerShown: true,
-                  title: 'Confirm Order'
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Provider store={store}>
+        <UserProvider>
+          <SafeAreaProvider>
+            <NavigationContainer>
+              <StatusBar style="auto" />
+              <Stack.Navigator 
+                screenOptions={{
+                  headerShown: false
                 }}
-              />
-              <Stack.Screen 
-                name="Payment" 
-                component={Payment}
-                options={{ 
-                  headerShown: true,
-                  title: 'Payment'
-                }}
-              />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </SafeAreaProvider>
-      </UserProvider>
-    </Provider>
+              >
+                <Stack.Screen 
+                  name="DrawerHome" 
+                  component={DrawerNavigator} 
+                />
+                <Stack.Screen name="Home" component={Home} />
+                <Stack.Screen name="ProductDetails" component={ProductDetails} />
+                <Stack.Screen name="Search" component={Search} />
+                <Stack.Screen name="Signin" component={Signin} />
+                <Stack.Screen name="Signup" component={Signup} />
+                <Stack.Screen name="UserProfile" component={UserProfile} />
+                <Stack.Screen name="AdminHome" component={AdminHome} />
+                <Stack.Screen name="AdminOrders" component={AdminOrders} />
+                <Stack.Screen name="AdminUsers" component={AdminUsers} />
+                <Stack.Screen name="AdminRevenue" component={AdminRevenue} />
+                <Stack.Screen name="AdminProducts" component={AdminProducts} />
+                <Stack.Screen name="CartScreen" component={CartScreen} />
+                <Stack.Screen name="EditProfile" component={EditProfile} />
+                <Stack.Screen 
+                  name="Confirm" 
+                  component={Confirm}
+                  options={{ 
+                    headerShown: true,
+                    title: 'Confirm Order'
+                  }}
+                />
+                <Stack.Screen 
+                  name="Payment" 
+                  component={Payment}
+                  options={{ 
+                    headerShown: true,
+                    title: 'Payment'
+                  }}
+                />
+              </Stack.Navigator>
+            </NavigationContainer>
+          </SafeAreaProvider>
+        </UserProvider>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -6,11 +6,14 @@ import { auth } from '../../firebaseConfig';
 import authReducer from "../Reducers/Auth.reducer";
 import { setCurrentUser, getUserProfile } from "../Actions/Auth.actions";
 
+
 // Create context
 const UserContext = createContext(null);
 
+
 // Constants for secure storage
 const JWT_TOKEN_KEY = 'foodever21_jwt_token';
+
 
 // Provider component
 export const UserProvider = ({ children }) => {
@@ -20,15 +23,16 @@ export const UserProvider = ({ children }) => {
     isAuthenticated: null,
     user: {}
   });
-  
+ 
   // Use ref to track initialization state and prevent duplicate processing
   const initialized = useRef(false);
+
 
   useEffect(() => {
     // Skip if already initialized
     if (initialized.current) return;
     initialized.current = true;
-    
+   
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         // Set basic user data from Firebase
@@ -38,15 +42,15 @@ export const UserProvider = ({ children }) => {
           displayName: firebaseUser.displayName || 'User',
           photoURL: firebaseUser.photoURL || 'https://via.placeholder.com/150'
         };
-        
+       
         // Set user and loading state immediately with basic data
         setUser(basicUser);
         setLoading(false);
-        
+       
         try {
           // Get token for legacy reducer system
           const token = await firebaseUser.getIdToken();
-          
+         
           // Store token in SecureStore
           try {
             await SecureStore.setItemAsync(JWT_TOKEN_KEY, token);
@@ -56,25 +60,25 @@ export const UserProvider = ({ children }) => {
             console.error('Failed to save token in SecureStore, falling back to AsyncStorage:', secureStoreError);
             await AsyncStorage.setItem("jwt", token);
           }
-          
+         
           const decoded = jwtDecode(token);
-          
+         
           // Update reducer state (for backward compatibility)
           dispatch(setCurrentUser(decoded, basicUser));
-          
+         
           // Get additional user data from backend
           try {
             const userData = await getUserProfile();
-            
+           
             // Merge Firebase and backend data
             const fullUserData = {
               ...basicUser,
               ...userData,
               uid: firebaseUser.uid
             };
-            
+           
             setUser(fullUserData);
-            
+           
             // Update reducer state with full data
             dispatch(setCurrentUser(decoded, fullUserData));
           } catch (profileError) {
@@ -87,7 +91,7 @@ export const UserProvider = ({ children }) => {
         // User is signed out
         setUser(null);
         setLoading(false);
-        
+       
         try {
           // Clear tokens from both stores
           await SecureStore.deleteItemAsync(JWT_TOKEN_KEY);
@@ -98,23 +102,47 @@ export const UserProvider = ({ children }) => {
         }
       }
     });
-    
+   
     // Cleanup subscription
     return () => unsubscribe();
   }, []);
 
+
+  const loginUser = (userData, token) => {
+    // Store authentication data
+    // ...
+
+
+    // If you need to use navigation from context, use a ref
+    // and make sure to use proper navigation patterns
+    if (navigationRef.current) {
+      // Navigate to main screen without using reset
+      navigationRef.current.navigate('MainDrawer');
+     
+      // Or use the correct reset pattern if needed:
+      // navigationRef.current.reset({
+      //   index: 0,
+      //   routes: [{ name: 'MainDrawer' }]
+      // });
+    }
+   
+    // ...existing code...
+  };
+
+
   return (
-    <UserContext.Provider value={{ 
-      user, 
-      loading, 
+    <UserContext.Provider value={{
+      user,
+      loading,
       setUser,
       stateUser,
-      dispatch 
+      dispatch
     }}>
       {children}
     </UserContext.Provider>
   );
 };
+
 
 // Custom hook to use the user context
 export const useUser = () => {
@@ -124,6 +152,7 @@ export const useUser = () => {
   }
   return context;
 };
+
 
 // For backward compatibility
 export default UserContext;

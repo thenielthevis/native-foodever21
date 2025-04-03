@@ -548,7 +548,7 @@ const Signup = () => {
             <Text style={styles.accountText}>Already have an account? </Text>
             <TouchableOpacity onPress={() => navigation.reset({
               index: 0,
-              routes: [{ name: 'signin' }],
+              routes: [{ name: 'Signin' }],
             })}>
               <Text style={styles.signInLink}>Sign in</Text>
             </TouchableOpacity>
