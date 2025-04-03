@@ -44,7 +44,8 @@
           "androidMode": "default",
           "androidCollapsedTitle": "Updates from Foodever21"
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "extra": {
       "projectId": "foodever21-7618e"

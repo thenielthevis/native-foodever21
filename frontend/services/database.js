@@ -1,85 +1,161 @@
-import { openDatabase } from 'expo-sqlite';
+import * as SQLite from 'expo-sqlite';
 
 let db = null;
 
-export const initDatabase = () => {
-  return new Promise((resolve, reject) => {
-    try {
-      db = openDatabase('foodever.db');
+export const initDatabase = async () => {
+  try {
+    if (!db) {
+      console.log('Opening database...');
+      db = await SQLite.openDatabaseAsync('cartdb.db');
       
-      db.transaction(tx => {
-        tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS cart_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            order_id TEXT,
-            product_id TEXT,
-            quantity INTEGER,
-            product_data TEXT,
-            user_id TEXT
-          );`,
-          [],
-          () => {
-            console.log('Database initialized successfully');
-            resolve();
-          },
-          (_, error) => {
-            console.error('Database initialization error:', error);
-            reject(error);
-          }
+      // Create table using execAsync
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS cart_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          product_id TEXT NOT NULL,
+          product_name TEXT NOT NULL,
+          product_price REAL NOT NULL,
+          product_image TEXT,
+          quantity INTEGER DEFAULT 1,
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         );
-      });
-    } catch (error) {
-      console.error('Failed to open database:', error);
-      reject(error);
+      `);
+      
+      console.log('Database initialized successfully');
+      return db;
     }
-  });
+    return db;
+  } catch (error) {
+    console.error('Database initialization error:', error);
+    throw error;
+  }
 };
 
-export const saveCartItem = (orderItem, userId) => {
-  return new Promise((resolve, reject) => {
-    const productData = JSON.stringify(orderItem.product);
-    
-    db.transaction(tx => {
-      tx.executeSql(
-        `INSERT OR REPLACE INTO cart_items (order_id, product_id, quantity, product_data, user_id) 
-         VALUES (?, ?, ?, ?, ?);`,
-        [orderItem.order_id, orderItem.product.id, orderItem.quantity, productData, userId],
-        (_, result) => resolve(result),
-        (_, error) => reject(error)
+export const saveCartItem = async (product, quantity) => {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+
+  try {
+    // First check if product exists
+    const existingItem = await db.getFirstAsync(
+      'SELECT * FROM cart_items WHERE product_id = ?',
+      [product._id]
+    );
+
+    if (existingItem) {
+      // Update existing item
+      await db.runAsync(
+        'UPDATE cart_items SET quantity = quantity + ? WHERE product_id = ?',
+        [quantity, product._id]
       );
-    });
-  });
+    } else {
+      // Insert new item
+      await db.runAsync(
+        `INSERT INTO cart_items (
+          product_id, 
+          product_name, 
+          product_price, 
+          product_image, 
+          quantity
+        ) VALUES (?, ?, ?, ?, ?)`,
+
+        [
+          product._id,
+          product.name,
+          product.discountedPrice || product.price,
+          product.images?.[0]?.url || '',
+          quantity
+        ]
+      );
+    }
+  } catch (error) {
+    console.error('Error saving cart item:', error);
+    throw error;
+  }
 };
 
-export const getCartItems = (userId) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM cart_items WHERE user_id = ?;',
-        [userId],
-        (_, { rows: { _array } }) => {
-          const items = _array.map(item => ({
-            order_id: item.order_id,
-            product: JSON.parse(item.product_data),
-            quantity: item.quantity
-          }));
-          resolve(items);
-        },
-        (_, error) => reject(error)
-      );
-    });
-  });
+export const getCartItems = async () => {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+
+  try {
+    return await db.getAllAsync('SELECT * FROM cart_items ORDER BY timestamp DESC');
+  } catch (error) {
+    console.error('Error getting cart items:', error);
+    throw error;
+  }
 };
 
-export const clearCart = (userId) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'DELETE FROM cart_items WHERE user_id = ?;',
-        [userId],
-        (_, result) => resolve(result),
-        (_, error) => reject(error)
-      );
-    });
-  });
+export const clearCartItems = async () => {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+
+  try {
+    await db.runAsync('DELETE FROM cart_items');
+  } catch (error) {
+    console.error('Error clearing cart items:', error);
+    throw error;
+  }
+};
+
+export const updateCartItemQuantity = async (productId, quantity) => {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+
+  try {
+    await db.runAsync(
+      'UPDATE cart_items SET quantity = ? WHERE product_id = ?',
+      [quantity, productId]
+    );
+  } catch (error) {
+    console.error('Error updating cart item quantity:', error);
+    throw error;
+  }
+};
+
+export const deleteCartItem = async (productId) => {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+
+  try {
+    await db.runAsync('DELETE FROM cart_items WHERE product_id = ?', [productId]);
+  } catch (error) {
+    console.error('Error deleting cart item:', error);
+    throw error;
+  }
+};
+
+export const getCartItemCount = async () => {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+
+  try {
+    const result = await db.getFirstAsync('SELECT SUM(quantity) as total FROM cart_items');
+    return result?.total || 0;
+  } catch (error) {
+    console.error('Error getting cart item count:', error);
+    throw error;
+  }
+};
+
+export const getCartTotalCount = async () => {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+
+  try {
+    const result = await db.getFirstAsync(
+      'SELECT SUM(quantity) as total FROM cart_items'
+    );
+    return result?.total || 0;
+  } catch (error) {
+    console.error('Error getting cart total count:', error);
+    throw error;
+  }
 };

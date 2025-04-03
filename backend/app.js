@@ -9,7 +9,6 @@ const { admin } = require('./utils/firebaseAdminConfig'); // Import admin instan
 
 const products = require('./routes/product');
 const authRoute = require('./routes/authRoute');
-const orderListRoutes = require('./routes/orderlist');
 const orderRoutes = require('./routes/order');
 const orderRoute = require('./routes/orderRoute');
 
@@ -62,7 +61,6 @@ app.post('/api/v1/send-notification', async (req, res) => {
 
 // Routes
 app.use('/api/v1', products);
-app.use('/api/v1', orderListRoutes);
 app.use('/api/v1', orderRoutes);
 app.use('/api/v1/auth', authRoute);
 app.use('/api/v1', orderRoute);
