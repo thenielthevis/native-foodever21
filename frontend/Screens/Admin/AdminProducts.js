@@ -359,7 +359,7 @@ const AdminProducts = () => {
         <View style={styles.productInfo}>
           <Text style={styles.productName}>{item.name}</Text>
           <Text style={styles.productPrice}>
-            ${item.price.toFixed(2)}
+            ₱{item.price.toFixed(2)}
             {item.discount > 0 && (
               <Text style={styles.discountText}> (-{item.discount}%)</Text>
             )}
@@ -404,7 +404,7 @@ const AdminProducts = () => {
     <View style={styles.container}>
       {/* Header section */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Product Management</Text>
+        <Text style={styles.headerTitle}>Products Management</Text>
        
         {/* Search bar */}
         <View style={styles.searchContainer}>
@@ -724,6 +724,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 15,
+    marginTop: 20,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -874,8 +875,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   imageContainer: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 5,

@@ -115,3 +115,68 @@ exports.deleteOrderedProducts = async (req, res) => {
     });
   }
 };
+
+exports.getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .populate('userId', 'username email')
+      .populate('products.productId')
+      .sort({ createdAt: -1 });
+
+    const formattedOrders = orders.map(order => ({
+      id: order._id,
+      orderNumber: `ORD-${order._id.toString().slice(-4)}`,
+      customer: order.userId.username,
+      date: order.createdAt,
+      amount: order.products.reduce((total, item) => 
+        total + (item.productId.price * item.quantity), 0),
+      status: order.status,
+      items: order.products.map(item => ({
+        name: item.productId.name,
+        quantity: item.quantity,
+        price: item.productId.price
+      }))
+    }));
+
+    res.json(formattedOrders);
+  } catch (error) {
+    console.error('Error fetching all orders:', error);
+    res.status(500).json({ message: 'Error fetching orders' });
+  }
+};
+
+exports.updateOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      { status },
+      { new: true }
+    ).populate('userId', 'username email')
+     .populate('products.productId');
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.json({
+      id: order._id,
+      orderNumber: `ORD-${order._id.toString().slice(-4)}`,
+      customer: order.userId.username,
+      date: order.createdAt,
+      amount: order.products.reduce((total, item) => 
+        total + (item.productId.price * item.quantity), 0),
+      status: order.status,
+      items: order.products.map(item => ({
+        name: item.productId.name,
+        quantity: item.quantity,
+        price: item.productId.price
+      }))
+    });
+  } catch (error) {
+    console.error('Error updating order:', error);
+    res.status(500).json({ message: 'Error updating order' });
+  }
+};

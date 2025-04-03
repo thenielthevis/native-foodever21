@@ -12,10 +12,8 @@ import { clearCartData } from '../../../Redux/Actions/cartActions';
 import { placeOrder } from '../../../Redux/Actions/orderActions';
 import * as SecureStore from 'expo-secure-store';
 
-
 const SHIPPING_FEE = 50;
 const windowWidth = Dimensions.get('window').width;
-
 
 const Confirm = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -23,7 +21,6 @@ const Confirm = ({ navigation }) => {
   const [selectedPayment, setSelectedPayment] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const selectedOrders = useSelector(state => state.cart.selectedOrders || []);
-
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -55,7 +52,6 @@ const Confirm = ({ navigation }) => {
     fetchUserData();
   }, []);
 
-
   if (!userData) {
     return (
       <View style={styles.centered}>
@@ -64,22 +60,18 @@ const Confirm = ({ navigation }) => {
     );
   }
 
-
   const calculateItemTotal = (item) => {
     const price = item.product.discountedPrice || item.product.price;
     return price * item.quantity;
   };
 
-
   const calculateSubtotal = () => {
     return selectedOrders.reduce((total, item) => total + calculateItemTotal(item), 0);
   };
 
-
   const calculateGrandTotal = () => {
     return calculateSubtotal() + SHIPPING_FEE;
   };
-
 
   const handlePlaceOrder = async () => {
     if (!selectedPayment || !userData.mobileNumber || !userData.address) {
@@ -87,9 +79,7 @@ const Confirm = ({ navigation }) => {
       return;
     }
 
-
     setIsProcessing(true);
-
 
     try {
       const orderData = {
@@ -103,7 +93,6 @@ const Confirm = ({ navigation }) => {
         address: userData.address,
         total: calculateGrandTotal()
       };
-
 
       // Dispatch the order action without passing navigation
       await dispatch(placeOrder(orderData));
@@ -142,7 +131,6 @@ const Confirm = ({ navigation }) => {
     }
   };
 
-
   const renderOrderItems = () => (
     <View style={styles.orderSection}>
       <Text style={styles.sectionTitle}>Order Summary</Text>
@@ -170,7 +158,6 @@ const Confirm = ({ navigation }) => {
     </View>
   );
 
-
   const renderPaymentMethods = () => (
     <View style={styles.paymentSection}>
       <Text style={styles.sectionTitle}>Select Payment Method</Text>
@@ -189,7 +176,6 @@ const Confirm = ({ navigation }) => {
           <Text>Cash on Delivery</Text>
         </TouchableOpacity>
 
-
         <TouchableOpacity
           style={[
             styles.paymentOption,
@@ -203,7 +189,6 @@ const Confirm = ({ navigation }) => {
           />
           <Text>Credit Card</Text>
         </TouchableOpacity>
-
 
         <TouchableOpacity
           style={[
@@ -222,33 +207,35 @@ const Confirm = ({ navigation }) => {
     </View>
   );
 
-
   const renderBottomNav = () => (
     <View style={styles.bottomNav}>
+      <View style={styles.totalContainer}>
+        <Text style={styles.totalLabel}>Total:</Text>
+        <Text style={styles.totalAmount}>₱{calculateGrandTotal().toFixed(2)}</Text>
+      </View>
       <TouchableOpacity
         style={[
-          styles.nextButton,
-          (!userData?.mobileNumber || !userData?.address || !selectedPayment || isProcessing) &&
-          styles.nextButtonDisabled
+          styles.checkoutButton,
+          (!selectedPayment || !userData?.mobileNumber || !userData?.address || isProcessing) && 
+          styles.checkoutButtonDisabled
         ]}
         onPress={handlePlaceOrder}
-        disabled={!userData?.mobileNumber || !userData?.address || !selectedPayment || isProcessing}
+        disabled={!selectedPayment || !userData?.mobileNumber || !userData?.address || isProcessing}
       >
         {isProcessing ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color="#fff" size="small" />
         ) : (
-          <Text style={styles.nextButtonText}>
-            {isProcessing ? 'Processing...' : 'Place Order'}
+          <Text style={styles.checkoutButtonText}>
+            Checkout
           </Text>
         )}
       </TouchableOpacity>
     </View>
   );
 
-
   return (
     <View style={styles.container}>
-      <ScrollView>
+      <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery Information</Text>
           <View style={styles.infoItem}>
@@ -269,10 +256,8 @@ const Confirm = ({ navigation }) => {
           </View>
         </View>
 
-
         {renderOrderItems()}
         {renderPaymentMethods()}
-
 
         <View style={styles.totalSection}>
           <View style={styles.totalRow}>
@@ -292,12 +277,10 @@ const Confirm = ({ navigation }) => {
         </View>
       </ScrollView>
 
-
       {renderBottomNav()}
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -331,24 +314,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bottomNav: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
     padding: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: '#eee',
   },
-  nextButton: {
-    backgroundColor: '#ff9900',
-    padding: 15,
-    borderRadius: 8,
+  totalContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  nextButtonText: {
+  totalLabel: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  totalAmount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ff9900',
+  },
+  checkoutButton: {
+    backgroundColor: '#ff9900',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    minWidth: 120,
+  },
+  checkoutButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.8,
+  },
+  checkoutButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  nextButtonDisabled: {
-    backgroundColor: '#ccc',
-    opacity: 0.8,
+    textAlign: 'center',
   },
   orderSection: {
     padding: 15,
@@ -442,7 +448,37 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#ff9900',
-  }
+  },
+  totalText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  totalAmount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ff9900',
+  },
+  checkoutButton: {
+    backgroundColor: '#ff9900',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 120,
+  },
+  checkoutButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.8,
+  },
+  checkoutText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  scrollView: {
+    marginBottom: 70, // Reduced to better fit the bottom nav
+  },
 });
 
 export default Confirm;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { getUserOrderList, removeFromCart, fetchOrderCount, updateCartQuantity } from '../../Redux/Actions/cartActions';
@@ -15,46 +15,65 @@ const CartScreen = () => {
   const navigation = useNavigation();
   const [selectedItems, setSelectedItems] = useState({});
   const [loading, setLoading] = useState(false);
-  
-  const { orderList, loading: cartLoading, error } = useSelector(state => {
-    return {
+  const [isInitializing, setIsInitializing] = useState(true);  // Add this line
+
+  // Memoize the selector
+  const cartSelector = useMemo(() => {
+    return state => ({
       orderList: state.cart?.orderList || [],
       loading: state.cart?.loading || false,
       error: state.cart?.error || null
-    };
-  });
+    });
+  }, []);
+
+  const { orderList, loading: cartLoading, error } = useSelector(cartSelector);
 
   useEffect(() => {
     const initCart = async () => {
       try {
+        setIsInitializing(true);  // Start loading
         const token = await SecureStore.getItemAsync("jwt");
         const userData = await SecureStore.getItemAsync("userData");
         
         if (!token || !userData) {
           navigation.reset({
             index: 0,
-            routes: [{ name: 'signin' }],
+            routes: [{ name: 'Signin' }],
           });
           return;
         }
 
-        // Initialize SQLite and load cached data
-        await initDatabase();
-        const userDataObj = JSON.parse(userData);
-        const cachedItems = await getCartItems(userDataObj._id);
-        
-        if (cachedItems.length > 0) {
-          dispatch({
-            type: GET_ORDER_LIST_SUCCESS,
-            payload: cachedItems
-          });
+        try {
+          // Initialize SQLite
+          await initDatabase();
+          console.log('Database initialized');
+          
+          // Load cached data
+          const userDataObj = JSON.parse(userData);
+          const cachedItems = await getCartItems(userDataObj._id);
+          console.log('Cached items:', cachedItems);
+          
+          if (cachedItems && cachedItems.length > 0) {
+            dispatch({
+              type: 'GET_ORDER_LIST_SUCCESS',
+              payload: cachedItems
+            });
+          }
+        } catch (dbError) {
+          console.error('Database error:', dbError);
+          // Continue with API fetch even if local DB fails
         }
 
         // Fetch fresh data from server
-        dispatch(getUserOrderList());
-        dispatch(fetchOrderCount());
+        await Promise.all([
+          dispatch(getUserOrderList()),
+          dispatch(fetchOrderCount())
+        ]);
+
       } catch (error) {
         console.error('Error initializing cart:', error);
+      } finally {
+        setIsInitializing(false);  // End loading
       }
     };
     
@@ -198,7 +217,8 @@ const CartScreen = () => {
     </View>
   );
 
-  if (cartLoading || loading) {
+  // Update the loading check condition
+  if (isInitializing || cartLoading || loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#ff9900" />
@@ -362,7 +382,7 @@ const styles = StyleSheet.create({
   orderButton: {
     backgroundColor: '#ff9900',
     paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal:24,
     borderRadius: 8,
   },
   orderButtonDisabled: {

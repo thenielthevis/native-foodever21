@@ -399,9 +399,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   title: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
+    marginTop: 20,
   },
   subtitle: {
     fontSize: 16,

@@ -27,7 +27,8 @@ export const cartReducer = (state = initialState, action) => {
     case ADD_TO_CART:
       return {
         ...state,
-        cartItems: [...state.cartItems, action.payload]
+        orderList: [...state.orderList, action.payload],
+        error: null
       }
     case UPDATE_CART_QUANTITY:
       return {
@@ -41,7 +42,8 @@ export const cartReducer = (state = initialState, action) => {
     case REMOVE_FROM_CART:
       return {
         ...state,
-        orderList: state.orderList.filter(item => item.order_id !== action.payload)
+        orderList: state.orderList.filter(item => item.order_id !== action.payload),
+        error: null
       }
     case SET_CART_LOADING:
       return {
@@ -68,7 +70,12 @@ export const cartReducer = (state = initialState, action) => {
     case GET_ORDER_LIST_REQUEST:
       return { ...state, loading: true }
     case GET_ORDER_LIST_SUCCESS:
-      return { ...state, loading: false, orderList: action.payload }
+      return { 
+        ...state, 
+        loading: false, 
+        orderList: action.payload,
+        error: null 
+      }
     case GET_ORDER_LIST_FAIL:
       return { ...state, loading: false, error: action.payload }
     case 'SET_SELECTED_ORDERS':

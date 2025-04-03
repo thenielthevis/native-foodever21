@@ -77,7 +77,7 @@ const UserProfile = ({ navigation }) => {
       console.error("Failed to fetch user data:", error);
       navigation.reset({
         index: 0,
-        routes: [{ name: 'signin' }],
+        routes: [{ name: 'Signin' }],
       });
     } finally {
       setLoading(false);
@@ -112,7 +112,7 @@ const UserProfile = ({ navigation }) => {
      
       navigation.reset({
         index: 0,
-        routes: [{ name: 'signin' }],
+        routes: [{ name: 'Signin' }],
       });
     } catch (error) {
       console.error('Logout error:', error);

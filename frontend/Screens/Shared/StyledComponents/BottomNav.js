@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
@@ -8,27 +8,41 @@ import * as SecureStore from 'expo-secure-store';
 const BottomNav = ({ navigation, activeRoute }) => {
   const dispatch = useDispatch();
   const { cartCount = 0 } = useSelector(state => state.cart || { cartCount: 0 });
-  const { userRole } = useSelector(state => state.auth || { userRole: 'admin' });
+  const [userRole, setUserRole] = useState('user'); // Change to use local state
+
+  // Add function to get user data from SecureStore
+  const getUserData = async () => {
+    try {
+      const userData = await SecureStore.getItemAsync("userData");
+      if (userData) {
+        const parsedData = JSON.parse(userData);
+        console.log('User role from storage:', parsedData.role);
+        setUserRole(parsedData.role || 'user');
+      }
+    } catch (error) {
+      console.error('Error getting user data:', error);
+      setUserRole('user'); // Default to user role if there's an error
+    }
+  };
 
   const handleCartPress = async () => {
     const token = await SecureStore.getItemAsync("jwt");
     if (!token) {
-      navigation.navigate('signin');
+      navigation.navigate('Signin');
       return;
     }
     // Navigate directly to CartScreen through the DrawerNavigator
     navigation.navigate('CartScreen');
   };
 
-
   useEffect(() => {
+    getUserData(); // Get user role when component mounts
     dispatch(fetchOrderCount());
     const interval = setInterval(() => {
       dispatch(fetchOrderCount());
     }, 30000);
     return () => clearInterval(interval);
   }, [dispatch]);
-
 
   return (
     <View style={styles.container}>

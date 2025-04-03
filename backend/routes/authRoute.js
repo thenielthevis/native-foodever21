@@ -31,13 +31,15 @@ router.delete('/remove-fcm-token', protect, removeFcmToken);
 router.post('/clean-stale-tokens', protect, adminProtect, cleanStaleTokens);
 router.post('/upload-avatar', uploadAvatar);
 router.get('/me', protect, getCurrentUser);
-router.get('/users', getUsers);
+
+// Remove this duplicate route
+// router.get('/users', getUsers);
+
+// Keep only one route for getting all users and protect it
+router.get('/users', protect, adminProtect, getAllUsers);
 
 //checking email and deleting user
 router.get('/check-email/:email', checkEmail);
 router.delete('/delete-user/:email', deleteUser);
-
-//fetching all users
-router.get('/users', protect, getAllUsers);
 
 module.exports = router;

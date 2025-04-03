@@ -19,6 +19,7 @@ try {
 }
 
 export const SET_CURRENT_USER = "SET_CURRENT_USER";
+export const GET_ALL_USERS = "GET_ALL_USERS";
 
 // Constants for secure storage
 const JWT_TOKEN_KEY = 'foodever21_jwt_token';
@@ -578,4 +579,45 @@ export const setCurrentUser = (decoded, user) => {
         payload: decoded,
         userProfile: user
     }
+};
+
+export const getAllUsers = () => async (dispatch) => {
+  try {
+    dispatch({ type: "GET_USERS_REQUEST" });
+    
+    const token = await SecureStore.getItemAsync("jwt");
+    if (!token) throw new Error('No authentication token found');
+
+    console.log('Fetching users with token:', token ? 'Token exists' : 'No token');
+
+    const response = await axios.get(
+      `${API_URL}/auth/users`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log('Users API Response:', response.data);
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to fetch users');
+    }
+
+    dispatch({
+      type: "GET_USERS_SUCCESS",
+      payload: response.data.users || []
+    });
+
+    return response.data.users || [];
+  } catch (error) {
+    console.error('Error fetching users:', error.response || error);
+    dispatch({
+      type: "GET_USERS_FAIL",
+      payload: error.response?.data?.message || error.message
+    });
+    return [];
+  }
 };

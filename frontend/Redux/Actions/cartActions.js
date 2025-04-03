@@ -16,39 +16,17 @@ import {
 
 export const addToCart = (productId, quantity) => async (dispatch) => {
   try {
-    dispatch({ type: SET_CART_LOADING, payload: true })
+    dispatch({ type: SET_CART_LOADING, payload: true });
     
-    // Get stored token
     const token = await SecureStore.getItemAsync("jwt");
-    console.log('Cart - Using token:', token ? 'Token exists' : 'No token');
-    
-    if (!token) {
-      throw new Error('Authentication token not found. Please login again.')
-    }
-
-    // Get stored user data
     const userDataStr = await SecureStore.getItemAsync("userData");
-    const userData = JSON.parse(userDataStr);
-    console.log('Cart - User data:', {
-      id: userData?._id,
-      email: userData?.email
-    });
-
-    if (!userData || !userData._id) {
-      throw new Error('User data not found. Please login again.');
+    
+    if (!token || !userDataStr) {
+      throw new Error('Authentication required');
     }
 
-    // Configure request with token
-    const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    };
+    const userData = JSON.parse(userDataStr);
 
-    console.log('Cart - Making request to:', `${API_URL}/add-to-orderlist`);
-    
-    // Add to cart using stored user ID
     const response = await axios.post(
       `${API_URL}/add-to-orderlist`,
       {
@@ -56,33 +34,31 @@ export const addToCart = (productId, quantity) => async (dispatch) => {
         user_id: userData._id,
         quantity
       },
-      config
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
     );
 
-    console.log('Cart - Response:', response.data);
-
+    // Add to local state
     dispatch({
       type: ADD_TO_CART,
       payload: response.data.order
     });
-    
-    // Fetch updated cart count
-    dispatch(fetchCartCount());
+
+    // Refresh entire cart data to ensure sync
+    await dispatch(getUserOrderList());
 
     return { success: true };
   } catch (error) {
-    console.error('Cart - Error:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
-    
-    const errorMsg = error.message || error.response?.data?.message || 'Failed to add to cart';
+    console.error('Add to cart error:', error);
     dispatch({
       type: SET_CART_ERROR,
-      payload: errorMsg
+      payload: error.message || 'Failed to add to cart'
     });
-    return { success: false, error: errorMsg };
+    return { success: false, error: error.message };
   } finally {
     dispatch({ type: SET_CART_LOADING, payload: false });
   }
@@ -236,20 +212,24 @@ export const getUserOrderList = () => async (dispatch) => {
       }
     });
 
+    // Update both orderList and cart count
     dispatch({
       type: GET_ORDER_LIST_SUCCESS,
-      payload: response.data.orders
+      payload: response.data.orders || []
     });
 
-    // Update cart count with total quantities
-    const totalQuantity = response.data.orders.reduce((sum, order) => sum + (order.quantity || 0), 0);
+    // Update cart count
+    const totalQuantity = (response.data.orders || []).reduce((sum, order) => sum + (order.quantity || 0), 0);
     dispatch({ type: SET_CART_COUNT, payload: totalQuantity });
+
+    return response.data.orders;
   } catch (error) {
     console.error('Failed to fetch order list:', error);
     dispatch({
       type: GET_ORDER_LIST_FAIL,
       payload: error.message
     });
+    return [];
   }
 };
 
@@ -277,15 +257,17 @@ export const removeFromCart = (orderId) => async (dispatch) => {
       }
     });
 
+    // Remove from local state first
     dispatch({
       type: REMOVE_FROM_CART,
       payload: orderId
     });
 
-    // Refresh cart count after removal
-    dispatch(fetchCartCount());
+    // Refresh entire cart data to ensure sync
+    await dispatch(getUserOrderList());
 
   } catch (error) {
+    console.error('Error removing item:', error);
     dispatch({
       type: SET_CART_ERROR,
       payload: error.response?.data?.message || 'Failed to remove item'

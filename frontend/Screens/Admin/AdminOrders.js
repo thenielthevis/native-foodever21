@@ -111,7 +111,7 @@ const AdminOrders = ({ navigation }) => {
  
   const openStatusModal = (order) => {
     // Prevent updating completed or cancelled orders
-    if (order.status === 'Completed' || order.status === 'Cancelled') {
+    if (order.status === 'completed' || order.status === 'cancelled') {
       Alert.alert(
         'Status Locked',
         `This order is already marked as ${order.status} and cannot be modified.`
@@ -134,7 +134,7 @@ const AdminOrders = ({ navigation }) => {
 
   const renderOrderItem = ({ item }) => {
     const isExpanded = expandedOrder === item.id;
-    const isImmutableStatus = item.status === 'Completed' || item.status === 'Cancelled';
+    const isImmutableStatus = item.status === 'completed' || item.status === 'cancelled';
    
     return (
       <TouchableOpacity
@@ -230,9 +230,9 @@ const AdminOrders = ({ navigation }) => {
               style={styles.filterButton}
               onPress={() => Alert.alert('Filter', 'Status filter options', [
                 { text: 'All', onPress: () => setFilterStatus('All') },
-                { text: 'Shipping', onPress: () => setFilterStatus('Shipping') },
-                { text: 'Completed', onPress: () => setFilterStatus('Completed') },
-                { text: 'Cancelled', onPress: () => setFilterStatus('Cancelled') },
+                { text: 'Shipping', onPress: () => setFilterStatus('shipping') },
+                { text: 'Completed', onPress: () => setFilterStatus('completed') },
+                { text: 'Cancelled', onPress: () => setFilterStatus('cancelled') },
                 { text: 'Cancel', style: 'cancel' }
               ])}
             >
@@ -374,6 +374,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 10,
+    marginTop: 20,
   },
   filterContainer: {
     flexDirection: 'row',
@@ -592,7 +593,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   picker: {
-    height: 50,
+    height: 'auto',
   },
   modalActions: {
     flexDirection: 'row',

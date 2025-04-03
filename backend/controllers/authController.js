@@ -651,21 +651,28 @@ exports.getUsers = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
-    // Fetch from MongoDB
-    const mongoUsers = await User.find();
-   
-    // Fetch from Firestore
-    const firestoreSnapshot = await db.collection('users').get();
-    const firestoreUsers = firestoreSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log('Getting all users...');
+    const users = await User.find();
+    console.log(`Found ${users.length} users`);
 
-
-    // Combine the data
-    const allUsers = [...mongoUsers.map(user => user.toObject()), ...firestoreUsers];
-   
-    res.status(200).json({ message: 'Users fetched successfully.', users: allUsers });
+    res.status(200).json({
+      success: true,
+      users: users.map(user => ({
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        status: user.status,
+        role: user.role,
+        createdAt: user.createdAt
+      }))
+    });
   } catch (error) {
     console.error('Error fetching users:', error.message);
-    res.status(500).json({ message: 'Failed to fetch users.', error: error.message });
+    res.status(500).json({
+      success: false, 
+      message: 'Internal server error', 
+      error: error.message
+    });
   }
 };
 

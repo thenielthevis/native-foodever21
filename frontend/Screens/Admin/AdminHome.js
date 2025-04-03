@@ -4,8 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllOrders } from '../../Redux/Actions/orderActions';
 import { listProducts } from '../../Redux/Actions/productActions'; // Add product actions import
+import { getAllUsers } from '../../Redux/Actions/Auth.actions';
 import { BarChart } from '../../utils/fix-chart-kit';
-
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { API_URL } from '@env';
 
 const DashboardCard = ({ title, count, icon, color, onPress, isLoading }) => {
   return (
@@ -39,6 +43,18 @@ const AdminHome = ({ navigation }) => {
   // Get product data from Redux store
   const { products = [], loading: productsLoading } = useSelector(state => state.productList);
  
+  // Add the users state from the Redux store
+  const [usersCount, setUsersCount] = useState(0);
+  const { users = [] } = useSelector(state => ({
+    users: state.auth?.allUsers || []
+  }));
+
+  // Add console log to track user count
+  useEffect(() => {
+    console.log('Total users count:', users.length);
+    console.log('Users data:', users);
+  }, [users]);
+
   // Calculate order metrics
   const orderCount = adminOrders.length;
   const totalRevenue = adminOrders.reduce((total, order) => total + (order.amount || 0), 0);
@@ -111,6 +127,7 @@ const AdminHome = ({ navigation }) => {
       try {
         setIsLoading(true);
         await Promise.all([
+          fetchUsers(),
           dispatch(getAllOrders()),
           dispatch(listProducts())
         ]);
@@ -124,6 +141,46 @@ const AdminHome = ({ navigation }) => {
     loadData();
   }, [dispatch]);
 
+  // Add function to get token
+  const getToken = async () => {
+    try {
+      // Try to get from SecureStore first
+      const token = await SecureStore.getItemAsync('foodever21_jwt_token');
+      if (token) return token;
+     
+      // Fallback to AsyncStorage
+      return await AsyncStorage.getItem('jwt');
+    } catch (error) {
+      console.error('Error getting token:', error);
+      return null;
+    }
+  };
+
+  // Add function to fetch users
+  const fetchUsers = async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        console.error('Authentication token not found');
+        return;
+      }
+     
+      const response = await axios.get(`${API_URL}/auth/users`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+     
+      if (response.data && response.data.users) {
+        setUsersCount(response.data.users.length);
+        console.log('Total users:', response.data.users.length);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   const navigateToOrders = () => {
     console.log('Navigating to AdminOrders screen');
@@ -166,10 +223,11 @@ const AdminHome = ({ navigation }) => {
         />
         <DashboardCard
           title="Users"
-          count="1,453"
+          count={usersCount.toString()}
           icon="people-outline"
           color="#4CAF50"
           onPress={navigateToUsers}
+          isLoading={isLoading}
         />
         <DashboardCard
           title="Orders"
@@ -313,7 +371,7 @@ const AdminHome = ({ navigation }) => {
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{productCount}</Text>
-            <Text style={styles.statLabel}>Total Products</Text>
+            <Text style={styles.statLabel}>Products</Text>
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{availableProducts}</Text>

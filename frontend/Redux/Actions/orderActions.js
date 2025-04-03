@@ -28,114 +28,34 @@ import { clearCartData } from './cartActions';
 // Action to fetch all orders (admin only)
 export const getAllOrders = () => async (dispatch) => {
   try {
-    console.log('getAllOrders - Starting to fetch all orders');
     dispatch({ type: GET_ALL_ORDERS_REQUEST });
-   
-    // Get authentication token
+    
     const token = await SecureStore.getItemAsync("jwt");
     if (!token) {
-      throw new Error('No authentication token found. Please log in again.');
+      throw new Error('No authentication token found');
     }
-   
-    // Make sure API_URL is correct - log it for debugging
-    console.log(`API_URL from env: ${API_URL}`);
-   
-    // Make sure the endpoint has a leading slash if needed
-    const endpoint = API_URL.endsWith('/') ? 'orders' : '/orders';
-    const fullUrl = `${API_URL}${endpoint}`;
-   
-    console.log(`Making request to: ${fullUrl}`);
-   
-    // Make request WITH authentication headers
+
     const response = await axios.get(
-      fullUrl,
+      `${API_URL}/admin/orders`,
       {
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}` // Add token to request
-        },
-        timeout: 10000  // 10 second timeout
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       }
     );
 
-
-    console.log('getAllOrders - Raw response status:', response.status);
-   
-    // Check if response data exists and is an array
-    if (!response.data) {
-      throw new Error('No data received from server');
-    }
-   
-    const orders = Array.isArray(response.data) ? response.data : [];
-    console.log(`getAllOrders - Processing ${orders.length} orders`);
-
-
-    // Format orders for display - using safer access patterns
-    const formattedOrders = orders.map(order => {
-      // Defensive programming for nested properties
-      const safeOrder = {
-        id: order._id || 'unknown-id',
-        orderNumber: `ORD-${order._id ? order._id.substring(0, 4) : 'XXXX'}`,
-        customer: order.userId?.username || 'Unknown Customer',
-        date: new Date(order.createdAt || order.timestamp || Date.now()).toISOString().split('T')[0],
-        amount: 0,
-        status: (order.status?.charAt(0).toUpperCase() + order.status?.slice(1)) || 'Processing',
-        items: []
-      };
-     
-      // Safely calculate amount and format items
-      if (Array.isArray(order.products)) {
-        safeOrder.amount = order.products.reduce((total, item) => {
-          const price = item.productId?.price || 0;
-          const quantity = item.quantity || 1;
-          return total + (price * quantity);
-        }, 0);
-       
-        safeOrder.items = order.products.map(item => ({
-          name: item.productId?.name || 'Unknown Product',
-          quantity: item.quantity || 1,
-          price: item.productId?.price || 0
-        }));
-      }
-     
-      return safeOrder;
-    });
-
-
     dispatch({
       type: GET_ALL_ORDERS_SUCCESS,
-      payload: formattedOrders
+      payload: response.data
     });
-   
-    return formattedOrders;
+
+    return response.data;
   } catch (error) {
     console.error('Error fetching all orders:', error);
-    console.error('Error response:', error.response?.data);
-    console.error('Error status:', error.response?.status);
-   
-    // Specific handling for 401 errors
-    if (error.response?.status === 401) {
-      Alert.alert(
-        'Authentication Error',
-        'Your session has expired or you do not have permission to access this data. Please log in again.',
-        [{ text: 'OK' }]
-      );
-    } else if (__DEV__) {
-      // For debugging purposes, show a detailed alert in dev mode
-      Alert.alert(
-        'API Error',
-        `Status: ${error.response?.status || 'unknown'}\n` +
-        `Message: ${error.message}\n` +
-        `URL: ${API_URL}/orders`
-      );
-    }
-   
     dispatch({
       type: GET_ALL_ORDERS_FAIL,
-      payload: error.response?.status === 401
-        ? 'Authentication error. Please log in again.'
-        : error.message || 'Failed to fetch orders'
+      payload: error.response?.data?.message || 'Failed to fetch orders'
     });
     throw error;
   }

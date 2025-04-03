@@ -263,91 +263,94 @@ const AdminUsers = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#777" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search users..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-      {error ? (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={24} color="#F44336" />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchUsers}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Users</Text>
         </View>
-      ) : (
-        <>
-          <View style={styles.statsContainer}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{users.length}</Text>
-              <Text style={styles.statLabel}>Total Users</Text>
+            <View style={styles.searchContainer}>
+                <Ionicons name="search-outline" size={20} color="#777" style={styles.searchIcon} />
+                <TextInput
+                style={styles.searchInput}
+                placeholder="Search users..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                />
             </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{users.filter(u => u.status === 'active').length}</Text>
-              <Text style={styles.statLabel}>Active</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{users.filter(u => u.status === 'inactive').length}</Text>
-              <Text style={styles.statLabel}>Inactive</Text>
-            </View>
-          </View>
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity style={styles.filterButton}>
-              <Ionicons name="filter-outline" size={18} color="#555" />
-              <Text style={styles.filterButtonText}>Filter</Text>
+            {error ? (
+                <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle-outline" size={24} color="#F44336" />
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={fetchUsers}>
+                    <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+                </View>
+            ) : (
+                <>
+                <View style={styles.statsContainer}>
+                    <View style={styles.statBox}>
+                    <Text style={styles.statNumber}>{users.length}</Text>
+                    <Text style={styles.statLabel}>Total Users</Text>
+                    </View>
+                    <View style={styles.statBox}>
+                    <Text style={styles.statNumber}>{users.filter(u => u.status === 'active').length}</Text>
+                    <Text style={styles.statLabel}>Active</Text>
+                    </View>
+                    <View style={styles.statBox}>
+                    <Text style={styles.statNumber}>{users.filter(u => u.status === 'inactive').length}</Text>
+                    <Text style={styles.statLabel}>Inactive</Text>
+                    </View>
+                </View>
+                <View style={styles.actionsContainer}>
+                    <TouchableOpacity style={styles.filterButton}>
+                    <Ionicons name="filter-outline" size={18} color="#555" />
+                    <Text style={styles.filterButtonText}>Filter</Text>
+                    </TouchableOpacity>
+                    <View style={styles.statusFilterButtons}>
+                    <TouchableOpacity
+                        style={[styles.statusFilterButton, styles.activeFilterButton]}
+                        onPress={() => setSearchQuery('active')}
+                    >
+                        <Text style={styles.statusFilterText}>Active</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.statusFilterButton, styles.inactiveFilterButton]}
+                        onPress={() => setSearchQuery('inactive')}
+                    >
+                        <Text style={styles.statusFilterText}>Inactive</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.statusFilterButton}
+                        onPress={() => setSearchQuery('')}
+                    >
+                        <Text style={styles.statusFilterText}>All</Text>
+                    </TouchableOpacity>
+                    </View>
+                </View>
+                </>
+            )}
+            <FlatList
+                data={filteredUsers}
+                renderItem={renderUserItem}
+                keyExtractor={item => item.id}
+                contentContainerStyle={styles.listContainer}
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                ListEmptyComponent={
+                loading ? (
+                    <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#4CAF50" />
+                    <Text style={styles.loadingText}>Loading users...</Text>
+                    </View>
+                ) : (
+                    <View style={styles.emptyContainer}>
+                    <Ionicons name="people-outline" size={50} color="#CCC" />
+                    <Text style={styles.emptyText}>No users found</Text>
+                    </View>
+                )
+                }
+            />
+            <TouchableOpacity style={styles.addButton}>
+                <Ionicons name="add" size={24} color="#FFF" />
             </TouchableOpacity>
-            <View style={styles.statusFilterButtons}>
-              <TouchableOpacity
-                style={[styles.statusFilterButton, styles.activeFilterButton]}
-                onPress={() => setSearchQuery('active')}
-              >
-                <Text style={styles.statusFilterText}>Active</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.statusFilterButton, styles.inactiveFilterButton]}
-                onPress={() => setSearchQuery('inactive')}
-              >
-                <Text style={styles.statusFilterText}>Inactive</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.statusFilterButton}
-                onPress={() => setSearchQuery('')}
-              >
-                <Text style={styles.statusFilterText}>All</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </>
-      )}
-      <FlatList
-        data={filteredUsers}
-        renderItem={renderUserItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContainer}
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4CAF50" />
-              <Text style={styles.loadingText}>Loading users...</Text>
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="people-outline" size={50} color="#CCC" />
-              <Text style={styles.emptyText}>No users found</Text>
-            </View>
-          )
-        }
-      />
-      <TouchableOpacity style={styles.addButton}>
-        <Ionicons name="add" size={24} color="#FFF" />
-      </TouchableOpacity>
     </View>
   );
 };
@@ -357,6 +360,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F7FA',
+  },
+  header: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginTop: 20,
   },
   searchContainer: {
     flexDirection: 'row',

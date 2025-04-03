@@ -95,14 +95,7 @@ export default function App() {
                 <Stack.Screen name="AdminProducts" component={AdminProducts} />
                 <Stack.Screen name="CartScreen" component={CartScreen} />
                 <Stack.Screen name="EditProfile" component={EditProfile} />
-                <Stack.Screen 
-                  name="Confirm" 
-                  component={Confirm}
-                  options={{ 
-                    headerShown: true,
-                    title: 'Confirm Order'
-                  }}
-                />
+                <Stack.Screen name="Confirm" component={Confirm} />
                 <Stack.Screen 
                   name="Payment" 
                   component={Payment}
