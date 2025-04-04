@@ -253,9 +253,6 @@ const AdminUsers = () => {
             <Text style={styles.statusButtonText}>Activate</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.editButton}>
-          <Ionicons name="create-outline" size={20} color="#555" />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -348,9 +345,6 @@ const AdminUsers = () => {
                 )
                 }
             />
-            <TouchableOpacity style={styles.addButton}>
-                <Ionicons name="add" size={24} color="#FFF" />
-            </TouchableOpacity>
     </View>
   );
 };

@@ -28,18 +28,26 @@ import { PRODUCT_CREATE_RESET, PRODUCT_UPDATE_RESET } from '../../Redux/Constant
 import { debounce } from 'lodash';
 import { SCREEN_WIDTH } from '../../utils/dimensions';
 
-const AdminProducts = () => {
+const AdminProducts = ({ navigation }) => {
   const dispatch = useDispatch();
   
-  // Replace productStore usage with useSelector
+  // Update the Redux selectors to include error states
   const { 
     loading, 
     error, 
     products 
   } = useSelector(state => state.productList);
   
-  const { success: createSuccess } = useSelector(state => state.productCreate);
-  const { success: updateSuccess } = useSelector(state => state.productUpdate);
+  const { 
+    success: createSuccess,
+    error: createError 
+  } = useSelector(state => state.productCreate);
+
+  const { 
+    success: updateSuccess,
+    error: updateError 
+  } = useSelector(state => state.productUpdate);
+
   const { success: deleteSuccess } = useSelector(state => state.productDelete);
 
   // Initial data fetch
@@ -61,7 +69,29 @@ const AdminProducts = () => {
     discount: '0',
     images: []
   });
- 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Update useEffect to handle success states without alerts
+  useEffect(() => {
+    if (isSubmitting) {
+      if (createSuccess || updateSuccess || deleteSuccess) {
+        setIsModalVisible(false);
+        setIsSubmitting(false);
+        resetForm();
+        setSelectedProducts([]); // Clear selection after delete
+        dispatch(listProducts()); // Refresh the products list
+        
+        // Reset success states
+        if (createSuccess) {
+          dispatch({ type: PRODUCT_CREATE_RESET });
+        }
+        if (updateSuccess) {
+          dispatch({ type: PRODUCT_UPDATE_RESET });
+        }
+      }
+    }
+  }, [createSuccess, updateSuccess, deleteSuccess, isSubmitting]);
+
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -136,32 +166,33 @@ const AdminProducts = () => {
     setIsModalVisible(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!productForm.name || !productForm.description || !productForm.price) {
       Alert.alert('Error', 'Please fill all required fields');
       return;
     }
 
-    // Create a clean object with properly formatted values
-    const productData = {
-      name: productForm.name.trim(),
-      description: productForm.description.trim(),
-      price: parseFloat(productForm.price),
-      category: productForm.category,
-      status: productForm.status,
-      discount: parseInt(productForm.discount || '0'),
-      images: productForm.images
-    };
+    setIsSubmitting(true);
 
-    console.log(`${isEditMode ? 'Updating' : 'Creating'} product:`, {
-      ...productData,
-      images: `${productData.images.length} images`
-    });
+    try {
+      const productData = {
+        name: productForm.name.trim(),
+        description: productForm.description.trim(),
+        price: parseFloat(productForm.price),
+        category: productForm.category,
+        status: productForm.status,
+        discount: parseInt(productForm.discount || '0'),
+        images: productForm.images
+      };
 
-    if (isEditMode) {
-      dispatch(updateProduct(productForm._id, productData));
-    } else {
-      dispatch(createProduct(productData));
+      if (isEditMode) {
+        await dispatch(updateProduct(productForm._id, productData));
+      } else {
+        await dispatch(createProduct(productData));
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Something went wrong');
+      setIsSubmitting(false);
     }
   };
 
@@ -211,39 +242,28 @@ const AdminProducts = () => {
     }
   };
 
+  // Update handleDeleteSelected to remove alert
   const handleDeleteSelected = () => {
-    if (selectedProducts.length === 0) {
-      Alert.alert('Error', 'No products selected');
-      return;
+    if (selectedProducts.length === 0) return;
+    
+    setIsSubmitting(true);
+    try {
+      dispatch(deleteBulkProducts(selectedProducts));
+    } catch (err) {
+      setIsSubmitting(false);
     }
-
-    Alert.alert(
-      'Confirm Delete',
-      `Are you sure you want to delete ${selectedProducts.length} selected product(s)?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => dispatch(deleteBulkProducts(selectedProducts))
-        }
-      ]
-    );
   };
 
+  // Update handleDeleteSingleProduct to match bulk deletion pattern
   const handleDeleteSingleProduct = (productId) => {
-    Alert.alert(
-      'Confirm Delete',
-      'Are you sure you want to delete this product?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => dispatch(deleteProduct(productId))
-        }
-      ]
-    );
+    setIsSubmitting(true);
+    setSelectedProducts([productId]); // Add the single product ID to selectedProducts
+    try {
+      dispatch(deleteBulkProducts([productId])); // Use the same bulk delete action
+    } catch (err) {
+      setIsSubmitting(false);
+      setSelectedProducts([]); // Clear selection on error
+    }
   };
 
   // Render functions
@@ -605,12 +625,21 @@ const AdminProducts = () => {
              
               <View style={styles.modalButtons}>
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.saveButton]}
+                  style={[
+                    styles.modalButton,
+                    styles.saveButton,
+                    isSubmitting && styles.disabledButton
+                  ]}
                   onPress={handleSubmit}
+                  disabled={isSubmitting}
                 >
-                  <Text style={styles.modalButtonText}>
-                    {isEditMode ? 'Update Product' : 'Create Product'}
-                  </Text>
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.modalButtonText}>
+                      {isEditMode ? 'Update Product' : 'Create Product'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -1041,6 +1070,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
 });
 

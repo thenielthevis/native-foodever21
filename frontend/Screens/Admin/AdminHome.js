@@ -1,20 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllOrders } from '../../Redux/Actions/orderActions';
 import { listProducts } from '../../Redux/Actions/productActions'; // Add product actions import
 import { getAllUsers } from '../../Redux/Actions/Auth.actions';
-import { BarChart } from '../../utils/fix-chart-kit';
+// import { BarChart } from 'react-native-gifted-charts'; // Replace chart import
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '@env';
 import { SCREEN_WIDTH } from '../../utils/dimensions';
+import { createSelector } from 'reselect';
 
-const DashboardCard = ({ title, count, icon, color, onPress, isLoading }) => {
+const DashboardCard = React.memo(({ title, count, icon, color, onPress, isLoading, index }) => {
   return (
-    <TouchableOpacity style={[styles.card, { borderLeftColor: color }]} onPress={onPress}>
+    <TouchableOpacity 
+      key={`dashboard-card-${title}-${index}`}
+      style={[styles.card, { borderLeftColor: color }]} 
+      onPress={onPress}
+    >
       <View style={styles.cardContent}>
         <View>
           <Text style={styles.cardTitle}>{title}</Text>
@@ -30,97 +35,131 @@ const DashboardCard = ({ title, count, icon, color, onPress, isLoading }) => {
       </View>
     </TouchableOpacity>
   );
-};
+});
 
+// Update selectors to include transformations
+const selectAdminOrders = createSelector(
+  state => state.order?.adminOrders,
+  adminOrders => (adminOrders || []).map(order => ({
+    ...order,
+    date: new Date(order.date),
+  }))
+);
+
+const selectProducts = createSelector(
+  state => state.productList?.products,
+  products => (products || []).map(product => ({
+    ...product,
+    isAvailable: product.status === 'Available'
+  }))
+);
+
+const selectUsers = createSelector(
+  state => state.auth?.allUsers,
+  users => (users || []).map(user => ({
+    ...user,
+    fullName: user.username || 'Anonymous'
+  }))
+);
+
+const selectLoadingStates = createSelector(
+  state => state.order?.adminOrdersLoading,
+  state => state.productList?.loading,
+  (adminOrdersLoading, productsLoading) => ({
+    adminOrdersLoading: adminOrdersLoading || false,
+    productsLoading: productsLoading || false
+  })
+);
 
 const AdminHome = ({ navigation }) => {
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
+  const [usersCount, setUsersCount] = useState(0); // Add this state variable
+  const [chartType, setChartType] = useState('bar');
+  const [timeFrame, setTimeFrame] = useState('monthly');
+  const [monthlyData, setMonthlyData] = useState(null);
+  const [weeklyData, setWeeklyData] = useState(null);
+  const [yearlyData, setYearlyData] = useState(null);
+  const [dailyData, setDailyData] = useState(null);
   const [chartData, setChartData] = useState(null);
- 
-  // Get order data from Redux store
-  const { adminOrders = [], adminOrdersLoading } = useSelector(state => state.order || {});
- 
-  // Get product data from Redux store
-  const { products = [], loading: productsLoading } = useSelector(state => state.productList);
- 
-  // Add the users state from the Redux store
-  const [usersCount, setUsersCount] = useState(0);
-  const { users = [] } = useSelector(state => ({
-    users: state.auth?.allUsers || []
-  }));
 
-  // Add console log to track user count
+  // Use memoized selectors
+  const adminOrders = useSelector(selectAdminOrders);
+  const products = useSelector(selectProducts);
+  const users = useSelector(selectUsers);
+  const { adminOrdersLoading, productsLoading } = useSelector(selectLoadingStates);
+
+  // Add users count effect
   useEffect(() => {
-    console.log('Total users count:', users.length);
-    console.log('Users data:', users);
+    if (users) {
+      setUsersCount(users.length);
+    }
   }, [users]);
 
-  // Calculate order metrics
-  const orderCount = adminOrders.length;
-  const totalRevenue = adminOrders.reduce((total, order) => total + (order.amount || 0), 0);
-  const formattedRevenue = `₱${totalRevenue.toFixed(2)}`;
- 
-  // Calculate product metrics
-  const productCount = products.length;
-  const availableProducts = products.filter(product => product.status === 'Available').length;
- 
-  // Sort orders by date (newest first) and take most recent 5
-  const recentOrders = [...adminOrders]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 5);
+  // Memoize derived values
+  const orderCount = useMemo(() => adminOrders.length, [adminOrders]);
+  const totalRevenue = useMemo(() => 
+    adminOrders.reduce((total, order) => total + (order.amount || 0), 0),
+    [adminOrders]
+  );
+  const productCount = useMemo(() => products.length, [products]);
+  const availableProducts = useMemo(() => 
+    products.filter(product => product.status === 'Available').length,
+    [products]
+  );
 
+  // Format revenue for display
+  const formattedRevenue = useMemo(() => 
+    `₱${totalRevenue.toFixed(2)}`,
+    [totalRevenue]
+  );
 
-  // Prepare chart data from orders
-  useEffect(() => {
-    if (adminOrders && adminOrders.length > 0) {
-      generateChartData(adminOrders);
-    }
-  }, [adminOrders]);
-
-
-  // Generate chart data from orders
+  // Replace the existing generateChartData useMemo with a regular function
   const generateChartData = (orders) => {
-    // Group orders by month
-    const monthlyData = {};
+    if (!orders || orders.length === 0) return [];
+
+    const monthlyRevenue = {};
    
-    // Process each order to generate monthly revenue data
     orders.forEach(order => {
       try {
         const orderDate = new Date(order.date);
         const monthKey = `${orderDate.getFullYear()}-${orderDate.getMonth() + 1}`;
        
-        if (!monthlyData[monthKey]) {
-          monthlyData[monthKey] = 0;
+        if (!monthlyRevenue[monthKey]) {
+          monthlyRevenue[monthKey] = 0;
         }
        
-        monthlyData[monthKey] += order.amount || 0;
+        monthlyRevenue[monthKey] += order.amount || 0;
       } catch (error) {
         console.error('Error processing order date:', error);
       }
     });
    
-    // Convert to array and sort by date
-    const sortedMonths = Object.keys(monthlyData).sort();
-   
-    // Get the last 6 months (or less if not enough data)
+    const sortedMonths = Object.keys(monthlyRevenue).sort();
     const recentMonths = sortedMonths.slice(-6);
    
-    // Format labels as MMM (e.g. "Jan", "Feb")
-    const labels = recentMonths.map(monthKey => {
+    return recentMonths.map(monthKey => {
       const [year, month] = monthKey.split('-');
-      return new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'short' });
-    });
-   
-    // Get corresponding revenue values
-    const datasets = recentMonths.map(monthKey => monthlyData[monthKey]);
-   
-    setChartData({
-      labels,
-      datasets: [{ data: datasets }]
+      const value = monthlyRevenue[monthKey];
+      return {
+        value,
+        label: new Date(parseInt(year), parseInt(month) - 1)
+          .toLocaleString('default', { month: 'short' }),
+        frontColor: '#9C27B0',
+        topLabelComponent: () => (
+          <Text style={styles.barLabel}>₱{value.toFixed(0)}</Text>
+        )
+      };
     });
   };
 
+  // Add useEffect to update chart data when orders change
+  useEffect(() => {
+    if (adminOrders && adminOrders.length > 0) {
+      const data = generateChartData(adminOrders);
+      setChartData(data);
+    }
+  }, [adminOrders]);
 
   // Fetch orders and products when component mounts
   useEffect(() => {
@@ -175,6 +214,7 @@ const AdminHome = ({ navigation }) => {
       });
      
       if (response.data && response.data.users) {
+        dispatch({ type: 'SET_ALL_USERS', payload: response.data.users }); // Update Redux store
         setUsersCount(response.data.users.length);
         console.log('Total users:', response.data.users.length);
       }
@@ -205,6 +245,124 @@ const AdminHome = ({ navigation }) => {
     navigation.navigate('AdminProducts');
   };
 
+  // Calculate recent orders - add this after other useMemo calculations
+  const recentOrders = useMemo(() => {
+    if (!adminOrders) return [];
+    return [...adminOrders]
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5)
+      .map(order => ({
+        id: order._id,
+        orderNumber: order.orderNumber || `ORD-${order._id.slice(-4)}`,
+        customer: order.user?.name || 'Anonymous',
+        amount: order.amount || 0,
+        status: order.status || 'Pending',
+        date: order.date
+      }));
+  }, [adminOrders]);
+
+  const dashboardCards = useMemo(() => [
+    {
+      id: 'products',
+      title: "Products",
+      count: productCount.toString(),
+      icon: "fast-food-outline",
+      color: "#FF8C00",
+      onPress: navigateToProducts,
+      isLoading: productsLoading || isLoading
+    },
+    {
+      id: 'users',
+      title: "Users",
+      count: usersCount.toString(),
+      icon: "people-outline",
+      color: "#4CAF50",
+      onPress: navigateToUsers,
+      isLoading: isLoading
+    },
+    {
+      id: 'orders',
+      title: "Orders",
+      count: orderCount.toString(),
+      icon: "cart-outline",
+      color: "#2196F3",
+      isLoading: adminOrdersLoading || isLoading,
+      onPress: navigateToOrders
+    },
+    {
+      id: 'revenue',
+      title: "Revenue",
+      count: formattedRevenue,
+      icon: "bar-chart-outline",
+      color: "#9C27B0",
+      isLoading: adminOrdersLoading || isLoading,
+      onPress: navigateToRevenue
+    }
+  ], [productCount, usersCount, orderCount, formattedRevenue, isLoading, productsLoading, adminOrdersLoading]);
+
+  const quickActions = useMemo(() => [
+    {
+      id: 'add-product',
+      icon: "add-circle-outline",
+      color: "#FF8C00",
+      bgColor: '#FFE0B2',
+      text: "Add Product",
+      onPress: navigateToProducts
+    },
+    {
+      id: 'manage-products',
+      icon: "create-outline",
+      color: "#2196F3",
+      bgColor: '#E3F2FD',
+      text: "Manage Products",
+      onPress: navigateToProducts
+    },
+    {
+      id: 'view-orders',
+      icon: "list-outline",
+      color: "#4CAF50",
+      bgColor: '#E8F5E9',
+      text: "View Orders",
+      onPress: navigateToOrders
+    }
+  ], []);
+
+  const productStats = useMemo(() => [
+    {
+      id: 'total',
+      number: productCount,
+      label: 'Products'
+    },
+    {
+      id: 'available',
+      number: availableProducts,
+      label: 'Available'
+    },
+    {
+      id: 'unavailable',
+      number: productCount - availableProducts,
+      label: 'Unavailable'
+    }
+  ], [productCount, availableProducts]);
+
+  // Update chart configuration
+  const chartConfig = {
+    barWidth: 30,
+    spacing: 20,
+    initialSpacing: 10,
+    data: chartData,
+    width: SCREEN_WIDTH - 70,
+    height: 220,
+    frontColor: '#9C27B0',
+    gradientColor: '#E1BEE7',
+    yAxisColor: "lightgray",
+    xAxisColor: "lightgray",
+    yAxisTextStyle: { color: '#666' },
+    xAxisLabelTextStyle: { color: '#666' },
+    rulesType: 'solid',
+    rulesColor: '#E5E5E5',
+    showFractionalValues: true,
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -214,77 +372,36 @@ const AdminHome = ({ navigation }) => {
       </View>
      
       <View style={styles.cardsContainer}>
-        <DashboardCard
-          title="Products"
-          count={productCount.toString()}
-          icon="fast-food-outline"
-          color="#FF8C00"
-          onPress={navigateToProducts}
-          isLoading={productsLoading || isLoading}
-        />
-        <DashboardCard
-          title="Users"
-          count={usersCount.toString()}
-          icon="people-outline"
-          color="#4CAF50"
-          onPress={navigateToUsers}
-          isLoading={isLoading}
-        />
-        <DashboardCard
-          title="Orders"
-          count={orderCount.toString()}
-          icon="cart-outline"
-          color="#2196F3"
-          isLoading={adminOrdersLoading || isLoading}
-          onPress={navigateToOrders}
-        />
-        <DashboardCard
-          title="Revenue"
-          count={formattedRevenue}
-          icon="bar-chart-outline"
-          color="#9C27B0"
-          isLoading={adminOrdersLoading || isLoading}
-          onPress={navigateToRevenue}
-        />
+        {dashboardCards.map((card, index) => (
+          <DashboardCard 
+            {...card} 
+            key={`card-${card.id}-${index}`}
+            index={index}
+          />
+        ))}
       </View>
      
       {/* Quick Actions Section */}
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.quickActionsContainer}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={navigateToProducts}
-          >
-            <View style={[styles.actionIcon, {backgroundColor: '#FFE0B2'}]}>
-              <Ionicons name="add-circle-outline" size={24} color="#FF8C00" />
-            </View>
-            <Text style={styles.actionText}>Add Product</Text>
-          </TouchableOpacity>
-         
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={navigateToProducts}
-          >
-            <View style={[styles.actionIcon, {backgroundColor: '#E3F2FD'}]}>
-              <Ionicons name="create-outline" size={24} color="#2196F3" />
-            </View>
-            <Text style={styles.actionText}>Manage Products</Text>
-          </TouchableOpacity>
-         
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={navigateToOrders}
-          >
-            <View style={[styles.actionIcon, {backgroundColor: '#E8F5E9'}]}>
-              <Ionicons name="list-outline" size={24} color="#4CAF50" />
-            </View>
-            <Text style={styles.actionText}>View Orders</Text>
-          </TouchableOpacity>
+          {quickActions.map((action, index) => (
+            <TouchableOpacity
+              key={`action-${action.id}-${index}`}
+              style={styles.actionButton}
+              onPress={action.onPress}
+            >
+              <View style={[styles.actionIcon, {backgroundColor: action.bgColor}]}>
+                <Ionicons name={action.icon} size={24} color={action.color} />
+              </View>
+              <Text style={styles.actionText}>{action.text}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
      
-      {/* Revenue Chart Section */}
+      {/* Comment out the Revenue Chart Section temporarily */}
+      {/*
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionTitle}>Monthly Revenue</Text>
         {(adminOrdersLoading || isLoading || !chartData) ? (
@@ -292,38 +409,19 @@ const AdminHome = ({ navigation }) => {
             <ActivityIndicator size="large" color="#9C27B0" />
             <Text style={styles.loadingText}>Loading chart data...</Text>
           </View>
-        ) : chartData.labels.length === 0 ? (
+        ) : chartData.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No chart data available</Text>
           </View>
         ) : (
           <View style={styles.chartContainer}>
-            <BarChart
-              data={chartData}
-              width={SCREEN_WIDTH - 40}
-              height={220}
-              chartConfig={{
-                backgroundColor: '#ffffff',
-                backgroundGradientFrom: '#ffffff',
-                backgroundGradientTo: '#ffffff',
-                decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(156, 39, 176, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                style: {
-                  borderRadius: 16,
-                },
-                barPercentage: 0.6,
-              }}
-              style={styles.chart}
-              fromZero
-              yAxisSuffix="₱"
-              showValuesOnTopOfBars={true}
-            />
+            <BarChart {...chartConfig} />
           </View>
         )}
       </View>
+      */}
 
-
+      {/* Rest of the components (Recent Orders, Product Status) */}
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionTitle}>Recent Orders</Text>
         {(adminOrdersLoading || isLoading) ? (
@@ -339,7 +437,7 @@ const AdminHome = ({ navigation }) => {
           <View style={styles.recentOrdersContainer}>
             {recentOrders.map((order, index) => (
               <TouchableOpacity
-                key={order.id}
+                key={`order-${order.id}-${index}`}
                 style={[
                   styles.orderItem,
                   index === recentOrders.length - 1 && { borderBottomWidth: 0 }
@@ -347,15 +445,15 @@ const AdminHome = ({ navigation }) => {
                 onPress={() => navigateToOrders()}
               >
                 <View style={styles.orderInfo}>
-                  <Text style={styles.orderNumber}>{order.orderNumber}</Text>
+                  <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
                   <Text style={styles.orderCustomer}>{order.customer}</Text>
                 </View>
                 <View style={styles.orderStatus}>
                   <Text style={styles.orderAmount}>₱{order.amount.toFixed(2)}</Text>
                   <View style={[
                     styles.statusBadge,
-                    order.status === 'Shipping' && styles.pendingBadge,
-                    order.status === 'Cancelled' && styles.cancelledBadge
+                    order.status.toLowerCase() === 'shipping' && styles.pendingBadge,
+                    order.status.toLowerCase() === 'cancelled' && styles.cancelledBadge
                   ]}>
                     <Text style={styles.statusText}>{order.status}</Text>
                   </View>
@@ -366,28 +464,23 @@ const AdminHome = ({ navigation }) => {
         )}
       </View>
 
-
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionTitle}>Product Status</Text>
         <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{productCount}</Text>
-            <Text style={styles.statLabel}>Products</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{availableProducts}</Text>
-            <Text style={styles.statLabel}>Available</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{productCount - availableProducts}</Text>
-            <Text style={styles.statLabel}>Unavailable</Text>
-          </View>
+          {productStats.map((stat, index) => (
+            <View 
+              key={`stat-${stat.id}-${index}`}
+              style={styles.statBox}
+            >
+              <Text style={styles.statNumber}>{stat.number}</Text>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+            </View>
+          ))}
         </View>
       </View>
     </ScrollView>
   );
 };
-
 
 const styles = StyleSheet.create({
   // ...existing code...
@@ -665,7 +758,26 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 16,
   },
+  tooltip: {
+    backgroundColor: 'white',
+    padding: 8,
+    borderRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  tooltipText: {
+    color: '#333',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  barLabel: {
+    color: '#666',
+    fontSize: 10,
+    marginBottom: 4,
+  },
 });
-
 
 export default AdminHome;

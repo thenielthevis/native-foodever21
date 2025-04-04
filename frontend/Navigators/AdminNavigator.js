@@ -10,7 +10,17 @@ const Stack = createStackNavigator();
 
 function AdminNavigator() {
     return (
-        <Stack.Navigator initialRouteName="AdminHome">
+        <Stack.Navigator 
+            initialRouteName="AdminHome"
+            screenOptions={{
+                headerMode: 'screen',
+                cardStyle: { backgroundColor: '#F5F7FA' },
+                animationEnabled: true,
+                presentation: 'card',
+                detachPreviousScreen: false,
+                freezeOnBlur: true,
+            }}
+        >
             <Stack.Screen
                 name="AdminHome"
                 component={AdminHome}
@@ -41,6 +51,7 @@ function AdminNavigator() {
                 options={{
                     title: 'Revenue Analytics',
                     headerShown: true,
+                    detachInactiveScreens: false, // This might help with chart persistence
                 }}
             />
             <Stack.Screen
