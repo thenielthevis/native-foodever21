@@ -56,7 +56,6 @@ const UserProfile = ({ navigation }) => {
         throw new Error('No authentication data found');
       }
 
-
       const userData = JSON.parse(userDataStr);
      
       // Set basic user info from stored data
@@ -64,7 +63,7 @@ const UserProfile = ({ navigation }) => {
         uid: userData.firebaseUid,
         displayName: userData.username,
         email: userData.email,
-        photoURL: 'https://via.placeholder.com/150', // You might want to add a photo URL to your user data
+        photoURL: userData.userImage || null, // Use userImage from userData
         createdAt: new Date().toISOString(),
       });
      
@@ -72,6 +71,10 @@ const UserProfile = ({ navigation }) => {
       const userProfile = await getUserProfile(token);
       if (!userProfile.error) {
         setBackendUser(userProfile);
+        // Update user photoURL if backend has a different one
+        if (userProfile.userImage && userProfile.userImage !== user?.photoURL) {
+          setUser(prev => ({ ...prev, photoURL: userProfile.userImage }));
+        }
       }
     } catch (error) {
       console.error("Failed to fetch user data:", error);
@@ -187,10 +190,17 @@ const UserProfile = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.profileCard}>
-            <Image
-              source={{ uri: user.photoURL }}
-              style={styles.profileImage}
-            />
+            {user.photoURL ? (
+              <Image
+                source={{ uri: user.photoURL }}
+                style={styles.profileImage}
+                defaultSource={require('../../assets/defaults/profile-pic.png')} // Add a default image
+              />
+            ) : (
+              <View style={[styles.placeholderImage, { backgroundColor: '#FF8C42' }]}>
+                <FontAwesome name="user" size={40} color="#FFFFFF" />
+              </View>
+            )}
             <Text style={styles.displayName}>{user.displayName}</Text>
             <Text style={styles.email}>{user.email}</Text>
            
@@ -313,6 +323,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 3,
     borderColor: COLORS.primary,
+  },
+  placeholderImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#FF8C42',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
   },
   displayName: {
     fontSize: 22,

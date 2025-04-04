@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "411310768407-a57ok9tpou1grl7scs3ipkcpr0qqql4a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.company.foodever21",
+            "certificate_hash": "68679d294d7210e542bb816635fc884b18aba387"
+          }
+        },
+        {
           "client_id": "411310768407-a6l9sff0ni31a224d1rqmoq0to0qf7hg.apps.googleusercontent.com",
           "client_type": 3
         }

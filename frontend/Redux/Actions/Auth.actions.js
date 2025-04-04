@@ -573,12 +573,12 @@ export const logoutUser = async (dispatch) => {
 };
 
 
-export const setCurrentUser = (decoded, user) => {
-    return {
-        type: SET_CURRENT_USER,
-        payload: decoded,
-        userProfile: user
-    }
+export const setCurrentUser = (user, userProfile = null) => {
+  return {
+    type: SET_CURRENT_USER,
+    payload: user,
+    userProfile: userProfile || user
+  };
 };
 
 export const getAllUsers = () => async (dispatch) => {
@@ -619,5 +619,31 @@ export const getAllUsers = () => async (dispatch) => {
       payload: error.response?.data?.message || error.message
     });
     return [];
+  }
+};
+
+export const googleLoginUser = (userData) => async (dispatch) => {
+  try {
+    const { user, backendUser } = userData;
+    
+    // Get fresh token
+    const token = await user.getIdToken(true);
+    await saveToken(token);
+
+    // Combine Firebase and MongoDB data
+    const combinedUserData = {
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      uid: user.uid,
+      token, // Include the token
+      ...backendUser // Include all backend user data
+    };
+
+    dispatch(setCurrentUser(combinedUserData, backendUser));
+    return combinedUserData;
+  } catch (error) {
+    console.error('Google login action error:', error);
+    throw error;
   }
 };

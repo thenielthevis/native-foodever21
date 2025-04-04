@@ -13,14 +13,155 @@ import * as SecureStore from 'expo-secure-store';
 
 import { signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../../firebaseConfig";
-// import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { GOOGLE_SIGNIN_CONFIG } from '../../google-auth-config';
 import { fetchCartCount } from '../../Redux/Actions/cartActions';
+import { setCurrentUser, googleLoginUser } from '../../Redux/Actions/Auth.actions';
 
 import 'expo-dev-client';
+import { ReactNativeFirebase } from "@react-native-firebase/app";
+
+// Initialize Google Sign-in
+GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
 
 const Signin = ({ navigation }) => {
-  const dispatch = useDispatch(); // Add this line
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const configureGoogleSignIn = async () => {
+      try {
+        await GoogleSignin.configure({
+          webClientId: "411310768407-a6l9sff0ni31a224d1rqmoq0to0qf7hg.apps.googleusercontent.com",
+          offlineAccess: true,
+          forceCodeForRefreshToken: false,
+        });
+
+        const isAvailable = await GoogleSignin.hasPlayServices();
+        console.log('Play Services available:', isAvailable);
+
+      } catch (error) {
+        console.error('Google SignIn Configuration Error:', {
+          code: error.code,
+          message: error.message,
+          stack: error.stack,
+          fullError: JSON.stringify(error, null, 2)
+        });
+      }
+    };
+    
+    configureGoogleSignIn();
+    checkStoredData();
+  }, []);
+
+  const onGoogleButtonPress = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      await GoogleSignin.signOut();
+      
+      console.log('Starting Google Sign-in process...');
+      await GoogleSignin.hasPlayServices();
+      
+      const signInResult = await GoogleSignin.signIn();
+      console.log('Google Sign In Result:', signInResult);
+
+      if (!signInResult?.data?.idToken) {
+        throw new Error('No ID token present in Google Sign-in response');
+      }
+
+      // Create Firebase credential
+      const credential = GoogleAuthProvider.credential(
+        signInResult.data.idToken
+      );
+
+      // Sign in to Firebase
+      const userCredential = await signInWithCredential(auth, credential);
+      console.log('Firebase auth successful:', userCredential.user);
+
+      // Get fresh token for backend calls
+      const idToken = await userCredential.user.getIdToken();
+
+      // Call backend to sync with MongoDB
+      const backendResponse = await axios.post(
+        `${API_URL}/auth/login`,
+        {
+          email: userCredential.user.email,
+          uid: userCredential.user.uid,
+          displayName: signInResult.data.user.name,
+          photoURL: signInResult.data.user.photo
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!backendResponse.data.success) {
+        throw new Error(backendResponse.data.message || 'Backend sync failed');
+      }
+
+      // Store complete user data
+      const userData = {
+        ...backendResponse.data.user,
+        token: idToken
+      };
+
+      // Save tokens and user data
+      await SecureStore.setItemAsync("userData", JSON.stringify(userData));
+      await SecureStore.setItemAsync("jwt", idToken);
+
+      // Dispatch actions to Redux store
+      dispatch(setCurrentUser(userData, backendResponse.data.user));
+      await dispatch(googleLoginUser({
+        user: userCredential.user,
+        backendUser: backendResponse.data.user
+      }));
+
+      // Optional: Register for push notifications if needed
+      try {
+        const pushToken = await registerForPushNotificationsAsync();
+        if (pushToken) {
+          await registerPushNotificationToken(pushToken);
+        }
+      } catch (pushError) {
+        console.warn('Push notification registration failed:', pushError);
+        // Continue with login even if push registration fails
+      }
+
+      // Navigate to Home
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+
+    } catch (error) {
+      console.error('Google Sign-In Error:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Add this helper function for push notifications
+  const registerForPushNotificationsAsync = async () => {
+    try {
+      // Your existing push notification registration logic
+      // Return the token if successful
+      return null; // Replace with actual implementation if needed
+    } catch (error) {
+      console.error('Push registration error:', error);
+      return null;
+    }
+  };
+  
   // State for form inputs and validation
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -159,94 +300,6 @@ const Signin = ({ navigation }) => {
     Alert.alert("Forgot Password", "A reset link will be sent to your email");
   };
 
-  useEffect(() => {
-    // Initialize Google Sign-in when component mounts
-    // GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
-    checkStoredData();
-  }, []);
-  
-  const onGoogleButtonPress = async () => {
-    if (isLoading) return;
-    
-    setIsLoading(true);
-    setError('');
-    
-    try {
-      // Check if device supports Google Play Services
-      // await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      
-      // Get the user's credentials
-      const { idToken } = await GoogleSignin.signIn();
-      
-      if (!idToken) {
-        throw new Error('Failed to get ID token from Google Sign-in');
-      }
-      
-      // Create Firebase credential
-      const googleCredential = GoogleAuthProvider.credential(idToken);
-      
-      // Sign in with Firebase
-      const userCredential = await signInWithCredential(auth, googleCredential);
-      const user = userCredential.user;
-      
-      // Get Firebase token
-      const token = await user.getIdToken();
-      await SecureStore.setItemAsync("jwt", token);
-      
-      console.log("Firebase authentication successful for:", user.email);
-      
-      // Call backend to synchronize user data
-      try {
-        const backendResponse = await axios.post(
-          `${API_URL}auth/login`, 
-          {
-            email: user.email,
-            uid: user.uid
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }
-        );
-        
-        if (backendResponse.data.token) {
-          await SecureStore.setItemAsync("backendToken", backendResponse.data.token);
-        }
-        
-        if (backendResponse.data.user) {
-          await SecureStore.setItemAsync("userData", JSON.stringify(backendResponse.data.user));
-        }
-        
-      } catch (backendError) {
-        console.warn("Backend login failed after Google sign-in:", backendError.message);
-        // Continue even if backend fails - we'll try to sync later
-      }
-      
-      // Navigate to Home screen
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Home' }],
-      });
-      
-    } catch (error) {
-      let errorMessage = 'Failed to sign in with Google.';
-      
-      if (error.code === 'CANCELED') {
-        errorMessage = 'Sign in was canceled.';
-      } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
-        errorMessage = 'Google Play Services is not available on this device.';
-      } else if (error.message) {
-        errorMessage = `Google sign-in error: ${error.message}`;
-      }
-      
-      console.error('Google Sign-In Error:', error);
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Handle sign up
   const handleSignUp = () => {
     navigation.navigate('Signup'); // Navigate to the sign-up screen
@@ -348,7 +401,7 @@ const Signin = ({ navigation }) => {
 
         <TouchableOpacity 
           style={styles.googleButton}
-          // onPress={onGoogleButtonPress}
+          onPress={onGoogleButtonPress}
           accessible={true}
           accessibilityLabel="Sign in with Google button"
           accessibilityHint="Double tap to sign in with your Google account"

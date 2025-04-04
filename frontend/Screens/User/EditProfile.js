@@ -191,10 +191,11 @@ const EditProfile = ({ route, navigation }) => {
               <Image
                 source={{ uri: imageURI }}
                 style={styles.profileImage}
+                defaultSource={require('../../assets/defaults/profile-pic.png')} // Add a default image
               />
             ) : (
-              <View style={styles.placeholderImage}>
-                <FontAwesome name="user" size={40} color="#FF8C42" />
+              <View style={[styles.placeholderImage, { backgroundColor: '#FF8C42' }]}>
+                <FontAwesome name="user" size={40} color="#FFFFFF" />
               </View>
             )}
             <View style={styles.editIconContainer}>
@@ -326,11 +327,11 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: '#FF8C42', // Changed to match UserProfile color scheme
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#FF8C42',
+    borderColor: '#FFFFFF',
   },
   editIconContainer: {
     position: 'absolute',

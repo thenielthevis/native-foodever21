@@ -19,7 +19,16 @@ export default function (state = initialState, action) {
                 ...state,
                 isAuthenticated: !isEmpty(action.payload),
                 user: action.payload,
-                userProfile: action.userProfile
+                userProfile: action.userProfile,
+                loading: false,
+                error: null
+            };
+        // Add a case for Google sign-in loading state
+        case "GOOGLE_SIGNIN_LOADING":
+            return {
+                ...state,
+                loading: true,
+                error: null
             };
         case "GET_USERS_REQUEST":
             return {

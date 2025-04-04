@@ -25,7 +25,8 @@
       "package": "com.company.foodever21",
       "googleServicesFile": "./google-services.json",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET"
       ],
       "debuggerHost": "192.168.1.254:8081",
       "enableHermes": true
@@ -50,7 +51,13 @@
         }
       ],
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "webClientId": "411310768407-a6l9sff0ni31a224d1rqmoq0to0qf7hg.apps.googleusercontent.com"
+        }
+      ]
     ],
     "scheme": "frontend",
     "extra": {
