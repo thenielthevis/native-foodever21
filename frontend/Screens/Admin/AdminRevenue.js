@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllOrders } from '../../Redux/Actions/orderActions';
 import { BarChart, LineChart } from '../../utils/fix-chart-kit';
+import { SCREEN_WIDTH } from '../../utils/dimensions';
 
 
 const AdminRevenue = () => {
@@ -241,7 +242,7 @@ const AdminRevenue = () => {
    
     const chartProps = {
       data: activeChartData,
-      width: Dimensions.get('window').width - 40,
+      width: SCREEN_WIDTH - 40,
       height: 220,
       chartConfig: {
         backgroundColor: '#ffffff',

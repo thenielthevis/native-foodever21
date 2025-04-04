@@ -10,6 +10,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '@env';
+import { SCREEN_WIDTH } from '../../utils/dimensions';
 
 const DashboardCard = ({ title, count, icon, color, onPress, isLoading }) => {
   return (
@@ -144,12 +145,12 @@ const AdminHome = ({ navigation }) => {
   // Add function to get token
   const getToken = async () => {
     try {
-      // Try to get from SecureStore first
-      const token = await SecureStore.getItemAsync('foodever21_jwt_token');
-      if (token) return token;
-     
-      // Fallback to AsyncStorage
-      return await AsyncStorage.getItem('jwt');
+      const token = await SecureStore.getItemAsync("jwt");
+      if (!token) {
+        console.error('No token found in SecureStore');
+        return null;
+      }
+      return token;
     } catch (error) {
       console.error('Error getting token:', error);
       return null;
@@ -299,7 +300,7 @@ const AdminHome = ({ navigation }) => {
           <View style={styles.chartContainer}>
             <BarChart
               data={chartData}
-              width={Dimensions.get('window').width - 40}
+              width={SCREEN_WIDTH - 40}
               height={220}
               chartConfig={{
                 backgroundColor: '#ffffff',

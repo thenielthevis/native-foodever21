@@ -18,8 +18,11 @@ import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { CustomMarkerLeft, CustomMarkerRight } from '../../Components/CustomMarkers/CustomMarkers';
 import Header from '../Shared/StyledComponents/Header';
 import BottomNav from '../Shared/StyledComponents/BottomNav';
+import { SCREEN_WIDTH } from '../../utils/dimensions';
 
 const CATEGORIES = ['All', 'Rice Meal', 'Sandwich', 'Pasta'];
+
+const { width: windowWidth } = Dimensions.get('window');
 
 const Search = ({ navigation }) => {
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -147,7 +150,7 @@ const Search = ({ navigation }) => {
           min={0}
           max={1000}
           step={1}
-          sliderLength={Dimensions.get('window').width - 60}
+          sliderLength={SCREEN_WIDTH - 60}
           selectedStyle={{
             backgroundColor: '#ff9900',
             height: 4,

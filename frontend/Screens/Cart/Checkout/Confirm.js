@@ -13,7 +13,7 @@ import { placeOrder } from '../../../Redux/Actions/orderActions';
 import * as SecureStore from 'expo-secure-store';
 
 const SHIPPING_FEE = 50;
-const windowWidth = Dimensions.get('window').width;
+const { width: windowWidth } = Dimensions.get('window');
 
 const Confirm = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -320,6 +320,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 15,
+    marginTop: 15,
   },
   infoItem: {
     flexDirection: 'row',

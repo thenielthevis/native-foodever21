@@ -4,8 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
-import store from './Redux/Store/cartStore';
-import { UserProvider } from './Redux/Store/AuthGlobal';
+import store from './Redux/Store/store'; // Update this import
 import Home from './Screens/Home/Home';
 import ProductDetails from './Screens/Product/ProductDetails';
 import Search from './Screens/Search/Search';
@@ -24,7 +23,7 @@ import AdminRevenue from './Screens/Admin/AdminRevenue';  // Add this import
 import AdminProducts from './Screens/Admin/AdminProducts';  // Add this import
 
 // Add these imports for push notifications
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { registerForPushNotificationsAsync, setupNotifications } from './utils/pushNotifications';
 import { auth } from './firebaseConfig'; 
 // Import DrawerNavigator
@@ -34,6 +33,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const navigationRef = useRef(null);
   // Add state for notifications
   const [notification, setNotification] = useState(null);
 
@@ -69,45 +69,52 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>
-        <UserProvider>
-          <SafeAreaProvider>
-            <NavigationContainer>
-              <StatusBar style="auto" />
-              <Stack.Navigator 
-                screenOptions={{
-                  headerShown: false
+        <SafeAreaProvider>
+          <NavigationContainer
+            ref={navigationRef}
+            onReady={() => {
+              console.log('Navigation container is ready');
+            }}
+          >
+            <StatusBar style="auto" />
+            <Stack.Navigator 
+              screenOptions={{
+                headerShown: false
+              }}
+              initialRouteName="DrawerHome"
+            >
+              <Stack.Screen 
+                name="DrawerHome" 
+                component={DrawerNavigator}
+                options={{
+                  animationEnabled: false // Disable animation for drawer screen
                 }}
-              >
-                <Stack.Screen 
-                  name="DrawerHome" 
-                  component={DrawerNavigator} 
-                />
-                <Stack.Screen name="Home" component={Home} />
-                <Stack.Screen name="ProductDetails" component={ProductDetails} />
-                <Stack.Screen name="Search" component={Search} />
-                <Stack.Screen name="Signin" component={Signin} />
-                <Stack.Screen name="Signup" component={Signup} />
-                <Stack.Screen name="UserProfile" component={UserProfile} />
-                <Stack.Screen name="AdminHome" component={AdminHome} />
-                <Stack.Screen name="AdminOrders" component={AdminOrders} />
-                <Stack.Screen name="AdminUsers" component={AdminUsers} />
-                <Stack.Screen name="AdminRevenue" component={AdminRevenue} />
-                <Stack.Screen name="AdminProducts" component={AdminProducts} />
-                <Stack.Screen name="CartScreen" component={CartScreen} />
-                <Stack.Screen name="EditProfile" component={EditProfile} />
-                <Stack.Screen name="Confirm" component={Confirm} />
-                <Stack.Screen 
-                  name="Payment" 
-                  component={Payment}
-                  options={{ 
-                    headerShown: true,
-                    title: 'Payment'
-                  }}
-                />
-              </Stack.Navigator>
-            </NavigationContainer>
-          </SafeAreaProvider>
-        </UserProvider>
+              />
+              <Stack.Screen name="Home" component={Home} />
+              <Stack.Screen name="ProductDetails" component={ProductDetails} />
+              <Stack.Screen name="Search" component={Search} />
+              <Stack.Screen name="Signin" component={Signin} />
+              <Stack.Screen name="Signup" component={Signup} />
+              <Stack.Screen name="UserProfile" component={UserProfile} />
+              <Stack.Screen name="AdminHome" component={AdminHome} />
+              <Stack.Screen name="AdminOrders" component={AdminOrders} />
+              <Stack.Screen name="AdminUsers" component={AdminUsers} />
+              <Stack.Screen name="AdminRevenue" component={AdminRevenue} />
+              <Stack.Screen name="AdminProducts" component={AdminProducts} />
+              <Stack.Screen name="CartScreen" component={CartScreen} />
+              <Stack.Screen name="EditProfile" component={EditProfile} />
+              <Stack.Screen name="Confirm" component={Confirm} />
+              <Stack.Screen 
+                name="Payment" 
+                component={Payment}
+                options={{ 
+                  headerShown: true,
+                  title: 'Payment'
+                }}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </SafeAreaProvider>
       </Provider>
     </GestureHandlerRootView>
   );

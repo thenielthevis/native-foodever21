@@ -13,6 +13,7 @@ const Drawer = createDrawerNavigator();
 
 const DrawerNavigator = () => {
   const [hasUserData, setHasUserData] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     const checkUserData = async () => {
@@ -22,11 +23,17 @@ const DrawerNavigator = () => {
       } catch (error) {
         console.log('Error checking user data:', error);
         setHasUserData(false);
+      } finally {
+        setIsInitialized(true);
       }
     };
     
     checkUserData();
   }, []);
+
+  if (!isInitialized) {
+    return null; // or a loading spinner
+  }
 
   return (
     <Drawer.Navigator
@@ -96,7 +103,7 @@ const DrawerNavigator = () => {
 
       {!hasUserData && (
         <Drawer.Screen
-          name="SignIn"
+          name="Signin"
           component={UserProfile}
           options={{
             drawerIcon: ({color, size}) => (

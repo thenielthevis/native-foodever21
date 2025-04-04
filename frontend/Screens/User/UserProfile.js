@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   StyleSheet,
   View,
@@ -16,8 +17,7 @@ import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomNav from '../Shared/StyledComponents/BottomNav';
 import { getUserProfile, logoutUser } from "../../Redux/Actions/Auth.actions";
-import { useUser } from '../../Redux/Store/AuthGlobal';
-import { useFocusEffect } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux'; // Add this
 import * as SecureStore from 'expo-secure-store';
 import { SET_CART_COUNT } from '../../Redux/Constants/cartConstants';
 import { clearCartData } from '../../Redux/Actions/cartActions';
@@ -43,7 +43,7 @@ const UserProfile = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [backendUser, setBackendUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { dispatch } = useUser();
+  const dispatch = useDispatch();
 
 
   const fetchUserData = async () => {
@@ -135,7 +135,7 @@ const UserProfile = ({ navigation }) => {
         colors={[COLORS.primary, COLORS.secondary, COLORS.background]}
         style={styles.centeredContainer}
       >
-        <StatusBar barStyle="light-content" />
+        <StatusBar backgroundColor="white" barStyle="dark-content" />
         <ActivityIndicator size="large" color={COLORS.white} />
       </LinearGradient>
     );
@@ -148,7 +148,7 @@ const UserProfile = ({ navigation }) => {
         colors={[COLORS.primary, COLORS.secondary, COLORS.background]}
         style={styles.centeredContainer}
       >
-        <StatusBar barStyle="light-content" />
+        <StatusBar backgroundColor="white" barStyle="dark-content" />
         <Text style={styles.errorText}>
           You are not signed in. Please sign in to view your profile.
         </Text>
@@ -165,7 +165,7 @@ const UserProfile = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar backgroundColor="white" barStyle="dark-content" />
       <LinearGradient
         colors={[COLORS.primary, COLORS.secondary, COLORS.background]}
         style={[styles.gradientBackground, { paddingTop: insets.top }]}
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 15,
     paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.05)',
     elevation: 2,

@@ -16,12 +16,12 @@ const AdminUsers = () => {
   // Function to get auth token
   const getToken = async () => {
     try {
-      // Try to get from SecureStore first
-      const token = await SecureStore.getItemAsync('foodever21_jwt_token');
-      if (token) return token;
-     
-      // Fallback to AsyncStorage
-      return await AsyncStorage.getItem('jwt');
+      const token = await SecureStore.getItemAsync("jwt");
+      if (!token) {
+        console.error('No token found in SecureStore');
+        return null;
+      }
+      return token;
     } catch (error) {
       console.error('Error getting token:', error);
       return null;
