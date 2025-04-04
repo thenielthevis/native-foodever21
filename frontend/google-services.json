@@ -1,0 +1,85 @@
+{
+  "project_info": {
+    "project_number": "411310768407",
+    "firebase_url": "https://foodever21-fa168-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "foodever21-fa168",
+    "storage_bucket": "foodever21-fa168.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:411310768407:android:896aae93d9dcafbf3c3752",
+        "android_client_info": {
+          "package_name": "com.company.foodever21"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "411310768407-a6l9sff0ni31a224d1rqmoq0to0qf7hg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtM6XZ9XW_FwtDa_gBr83ObZt3maE7jZ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "411310768407-a6l9sff0ni31a224d1rqmoq0to0qf7hg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:411310768407:android:8cffdd9649fb6bb03c3752",
+        "android_client_info": {
+          "package_name": "com.molliea.frontend"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "411310768407-cehqt5nndk4qkog5aa8j78o4v257un5f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.molliea.frontend",
+            "certificate_hash": "c6baee1b49d52f9fa9762ff2da54a0301ed9db81"
+          }
+        },
+        {
+          "client_id": "411310768407-s1808kojdjr602dr4afnq0v8jn2irbs6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.molliea.frontend",
+            "certificate_hash": "fee52d3da3f42abf04b5a1adb6eb39a2845ebba9"
+          }
+        },
+        {
+          "client_id": "411310768407-a6l9sff0ni31a224d1rqmoq0to0qf7hg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtM6XZ9XW_FwtDa_gBr83ObZt3maE7jZ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "411310768407-a6l9sff0ni31a224d1rqmoq0to0qf7hg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

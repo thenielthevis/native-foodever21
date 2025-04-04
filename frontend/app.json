@@ -1,35 +1,37 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "Foodever21",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "entryPoint": "./App.js",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.foodever21.app"
+      "bundleIdentifier": "com.company.foodever21"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.foodever21.app",
+      "package": "com.company.foodever21",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "debuggerHost": "192.168.1.254:8081",
+      "enableHermes": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/logo.png"
     },
     "plugins": [
       [
@@ -57,6 +59,6 @@
         "projectId": "42dc1502-f3fd-4acc-8c5f-7deb258d4ad5"
       }
     },
-    "owner": "theneelothevis"
+    "owner": "theneelothevis" 
   }
 }
