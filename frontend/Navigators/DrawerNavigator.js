@@ -97,7 +97,7 @@ const DrawerNavigator = () => {
       />
       
       <Drawer.Screen
-        name="OrderHistory"
+        name="UserOrdersScreen"
         component={Home}
         options={{
           drawerIcon: ({color, size}) => (

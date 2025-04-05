@@ -80,7 +80,6 @@ export const updateOrderStatus = (orderId, status) => async (dispatch) => {
         }
       }
     );
-
     // The response now contains the complete order data
     const updatedOrder = response.data.order;
     console.log('Updated order data:', updatedOrder);
@@ -319,5 +318,62 @@ export const placeOrder = (orderData, navigation) => async (dispatch) => {
       payload: error.response?.data?.message || 'Failed to place order'
     });
     Alert.alert('Error', 'Failed to place order. Please try again.');
+  }
+};
+
+export const getUserOrders = () => async (dispatch) => {
+  try {
+    dispatch({ type: GET_USER_ORDERS_REQUEST });
+
+    const token = await SecureStore.getItemAsync('jwt');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    console.log('Fetching orders with token:', token.substring(0, 20) + '...');
+
+    const response = await axios.get(
+      `${API_URL}/user-orders`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log('API response status:', response.status);
+    console.log('API response success flag:', response.data?.success);
+    console.log('API response orders count:', response.data?.orders?.length || 0);
+
+    if (response.data?.success) {
+      // Ensure we have an array of orders
+      const ordersArray = Array.isArray(response.data.orders) ? response.data.orders : [];
+      
+      console.log('Dispatching orders to Redux store:', ordersArray.length);
+      
+      // Dispatch to Redux
+      dispatch({
+        type: GET_USER_ORDERS_SUCCESS,
+        payload: ordersArray
+      });
+      
+      // Also return the data so we can use it directly
+      return ordersArray;
+    } else {
+      console.log('API returned success=false');
+      throw new Error(response.data?.message || 'Failed to fetch orders');
+    }
+  } catch (error) {
+    console.error('Error fetching orders:', {
+      message: error.message,
+      response: error.response?.data
+    });
+    
+    dispatch({
+      type: GET_USER_ORDERS_FAIL,
+      payload: error.response?.data?.message || error.message
+    });
+    return [];
   }
 };

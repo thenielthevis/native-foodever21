@@ -236,6 +236,21 @@ const Home = ({ navigation }) => {
                           <Text style={styles.productName} numberOfLines={2}>
                             {product.name}
                           </Text>
+                          
+                          {/* Status indicator */}
+                          <View style={[styles.statusBadge, 
+                            { backgroundColor: product.status === 'Available' ? '#e6ffe6' : '#ffe6e6' }
+                          ]}>
+                            <View style={[styles.statusDot, 
+                              { backgroundColor: product.status === 'Available' ? '#00cc00' : '#ff3333' }
+                            ]} />
+                            <Text style={[styles.statusText, 
+                              { color: product.status === 'Available' ? '#006600' : '#cc0000' }
+                            ]}>
+                              {product.status}
+                            </Text>
+                          </View>
+
                           <Text style={styles.productDescription} numberOfLines={2}>
                             {product.description}
                           </Text>
@@ -534,6 +549,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#ff9900',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginVertical: 4,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
 

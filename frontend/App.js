@@ -7,6 +7,7 @@ import { Provider } from 'react-redux';
 import store from './Redux/Store/store'; // Update this import
 import Home from './Screens/Home/Home';
 import ProductDetails from './Screens/Product/ProductDetails';
+import ProductReviewScreen from './Screens/Product/ProductReviewScreen'; // Add this import
 import Search from './Screens/Search/Search';
 import Signin from './Screens/User/Signin';
 import Signup from './Screens/User/Signup';
@@ -21,6 +22,7 @@ import AdminOrders from './Screens/Admin/AdminOrders';  // Add this import
 import AdminUsers from './Screens/Admin/AdminUsers';  // Add this import
 import AdminRevenue from './Screens/Admin/AdminRevenue';  // Add this import
 import AdminProducts from './Screens/Admin/AdminProducts';  // Add this import
+import UserOrdersScreen from './Screens/User/UserOrdersScreen';  // Add this import
 import NotificationsScreen from './Screens/Notifications/NotificationsScreen'; // Add this import
 import NotificationDetails from './Screens/Notifications/NotificationDetails';
 
@@ -159,6 +161,7 @@ export default function App() {
               <Stack.Screen name="Signin" component={Signin} />
               <Stack.Screen name="Signup" component={Signup} />
               <Stack.Screen name="UserProfile" component={UserProfile} />
+                <Stack.Screen name="UserOrdersScreen" component={UserOrdersScreen} />
               <Stack.Screen name="AdminHome" component={AdminHome} />
               <Stack.Screen name="AdminOrders" component={AdminOrders} />
               <Stack.Screen name="AdminUsers" component={AdminUsers} />
@@ -167,6 +170,17 @@ export default function App() {
               <Stack.Screen name="CartScreen" component={CartScreen} />
               <Stack.Screen name="EditProfile" component={EditProfile} />
               <Stack.Screen name="Confirm" component={Confirm} />
+                
+                {/* Add the ProductReview screen */}
+                <Stack.Screen 
+                  name="ProductReview" 
+                  component={ProductReviewScreen}
+                  options={{ 
+                    headerShown: true,
+                    title: 'Product Review'
+                  }}
+                />
+                
               <Stack.Screen 
                 name="Payment" 
                 component={Payment}

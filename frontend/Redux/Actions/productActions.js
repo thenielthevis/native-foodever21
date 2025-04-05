@@ -1,22 +1,27 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { 
-  PRODUCT_LIST_REQUEST,
-  PRODUCT_LIST_SUCCESS,
-  PRODUCT_LIST_FAIL,
-  PRODUCT_REVIEWS_REQUEST,
-  PRODUCT_REVIEWS_SUCCESS,
-  PRODUCT_REVIEWS_FAIL,
-  PRODUCT_CREATE_REQUEST,
-  PRODUCT_CREATE_SUCCESS,
-  PRODUCT_CREATE_FAIL,
-  PRODUCT_UPDATE_REQUEST,
-  PRODUCT_UPDATE_SUCCESS,
-  PRODUCT_UPDATE_FAIL,
-  PRODUCT_DELETE_REQUEST,
-  PRODUCT_DELETE_SUCCESS,
-  PRODUCT_DELETE_FAIL
+import { PRODUCT_LIST_REQUEST,
+        PRODUCT_LIST_SUCCESS,
+        PRODUCT_LIST_FAIL,
+        PRODUCT_REVIEWS_REQUEST,
+        PRODUCT_REVIEWS_SUCCESS,
+        PRODUCT_REVIEWS_FAIL,
+        PRODUCT_CREATE_REQUEST,
+        PRODUCT_CREATE_SUCCESS,
+        PRODUCT_CREATE_FAIL,
+        PRODUCT_UPDATE_REQUEST,
+        PRODUCT_UPDATE_SUCCESS,
+        PRODUCT_UPDATE_FAIL,
+        PRODUCT_DELETE_REQUEST,
+        PRODUCT_DELETE_SUCCESS,
+        PRODUCT_DELETE_FAIL,
+        USER_REVIEW_REQUEST,
+        USER_REVIEW_SUCCESS,
+        USER_REVIEW_FAIL,
+        USER_REVIEW_RESET
 } from '../Constants/productConstants';
 import { API_URL } from '@env';
+import * as SecureStore from 'expo-secure-store';
 
 export const listProducts = () => async (dispatch) => {
   try {
@@ -54,21 +59,89 @@ export const fetchProductReviews = (productId) => async (dispatch) => {
   try {
     dispatch({ type: PRODUCT_REVIEWS_REQUEST });
 
-    const { data } = await axios.get(`${API_URL}/product/${productId}/reviews`);
+    const token = await SecureStore.getItemAsync('jwt');
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+      }
+    };
+
+    // Get reviews with user details
+    const { data } = await axios.get(`${API_URL}/product/${productId}/reviews`, config);
+    console.log('Reviews data received:', data); // Debug log
+
+    if (data.success) {
+      // Ensure each review has the required fields
+      const processedReviews = data.reviews.map(review => ({
+        ...review,
+        avatarURL: review.avatarURL || null,
+        name: review.name || review.username || 'Anonymous User',
+        rating: review.rating || 0,
+        createdAt: review.createdAt || new Date(),
+        comment: review.comment || ''
+      }));
+
+      console.log('Processed reviews:', processedReviews); // Debug log
+
+      dispatch({
+        type: PRODUCT_REVIEWS_SUCCESS,
+        payload: processedReviews
+      });
+    } else {
+      throw new Error(data.message || 'Failed to fetch reviews');
+    }
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    dispatch({
+      type: PRODUCT_REVIEWS_FAIL,
+      payload: error.response?.data?.message || error.message
+    });
+  }
+};
+
+// Create review action
+export const createProductReview = (productId, review) => async (dispatch) => {
+  try {
+    dispatch({ type: PRODUCT_REVIEWS_REQUEST });
+
+    const token = await SecureStore.getItemAsync('jwt');
+    console.log('Token for review:', token ? 'Token exists' : 'No token found');
+
+    if (!token) {
+      throw new Error('Please login to write a review');
+    }
+
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    };
+
+    console.log('Sending review request with data:', { productId, review });
+    const { data } = await axios.post(
+      `${API_URL}/product/${productId}/review`,
+      review,
+      config
+    );
 
     if (data.success) {
       dispatch({
         type: PRODUCT_REVIEWS_SUCCESS,
         payload: data.reviews
       });
+      return data;
     } else {
-      throw new Error('Failed to fetch reviews');
+      throw new Error(data.message || 'Failed to create review');
     }
   } catch (error) {
+    console.error('Review creation error:', error);
     dispatch({
       type: PRODUCT_REVIEWS_FAIL,
       payload: error.response?.data?.message || error.message
     });
+    throw error;
   }
 };
 
@@ -131,6 +204,159 @@ export const createProduct = (productData) => async (dispatch) => {
       type: PRODUCT_CREATE_FAIL,
       payload: error.response?.data?.message || error.message
     });
+  }
+};
+
+// Update review action
+export const updateProductReview = (productId, reviewId, reviewData) => async (dispatch) => {
+  try {
+    dispatch({ type: PRODUCT_REVIEWS_REQUEST });
+
+    const token = await SecureStore.getItemAsync('jwt');
+    if (!token) {
+      throw new Error('Please login to edit a review');
+    }
+
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    };
+
+    console.log('Sending review update with data:', { productId, reviewId, reviewData });
+    const { data } = await axios.put(
+      `${API_URL}/product/${productId}/review/${reviewId}`,
+      reviewData,
+      config
+    );
+
+    if (data.success) {
+      // Refresh reviews after updating
+      const updatedReviews = await axios.get(
+        `${API_URL}/product/${productId}/reviews`,
+        config
+      );
+
+      dispatch({
+        type: PRODUCT_REVIEWS_SUCCESS,
+        payload: updatedReviews.data.reviews
+      });
+    } else {
+      throw new Error(data.message || 'Failed to update review');
+    }
+  } catch (error) {
+    console.error('Review update error:', error);
+    dispatch({
+      type: PRODUCT_REVIEWS_FAIL,
+      payload: error.response?.data?.message || error.message
+    });
+    throw error;
+  }
+};
+
+// Delete review action
+export const deleteProductReview = (productId, reviewId) => async (dispatch) => {
+  try {
+    dispatch({ type: PRODUCT_REVIEWS_REQUEST });
+
+    const token = await SecureStore.getItemAsync('jwt');
+    if (!token) {
+      throw new Error('Please login to delete a review');
+    }
+
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    };
+
+    console.log('Deleting review:', { productId, reviewId });
+    const { data } = await axios.delete(
+      `${API_URL}/product/${productId}/review/${reviewId}`,
+      config
+    );
+
+    if (data.success) {
+      // Refresh reviews after deletion
+      const updatedReviews = await axios.get(
+        `${API_URL}/product/${productId}/reviews`,
+        config
+      );
+
+      dispatch({
+        type: PRODUCT_REVIEWS_SUCCESS,
+        payload: updatedReviews.data.reviews
+      });
+    } else {
+      throw new Error(data.message || 'Failed to delete review');
+    }
+  } catch (error) {
+    console.error('Review deletion error:', error);
+    dispatch({
+      type: PRODUCT_REVIEWS_FAIL,
+      payload: error.response?.data?.message || error.message
+    });
+    throw error;
+  }
+};
+
+// Get user's review for specific product
+export const getUserProductReview = (productId) => async (dispatch) => {
+  try {
+    dispatch({ type: USER_REVIEW_REQUEST });
+
+    const token = await SecureStore.getItemAsync('jwt');
+    if (!token) {
+      dispatch({ type: USER_REVIEW_SUCCESS, payload: null });
+      return null;
+    }
+
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    };
+
+    const { data } = await axios.get(
+      `${API_URL}/product/${productId}/my-review`,
+      config
+    );
+
+    if (data.success) {
+      dispatch({
+        type: USER_REVIEW_SUCCESS,
+        payload: data.review
+      });
+      return data.review;
+    } else if (data.canReview && data.isNewReview) {
+      // User can create a new review but doesn't have one yet
+      dispatch({
+        type: USER_REVIEW_SUCCESS,
+        payload: null
+      });
+      return null;
+    } else {
+      throw new Error(data.message || 'Failed to fetch user review');
+    }
+  } catch (error) {
+    // If 404 (no review found), just set userReview to null
+    if (error.response && error.response.status === 404) {
+      dispatch({
+        type: USER_REVIEW_SUCCESS,
+        payload: null
+      });
+      return null;
+    } else {
+      console.error('Error fetching user review:', error);
+      dispatch({
+        type: USER_REVIEW_FAIL,
+        payload: error.response?.data?.message || error.message
+      });
+      throw error;
+    }
   }
 };
 

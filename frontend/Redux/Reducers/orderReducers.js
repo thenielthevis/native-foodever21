@@ -24,6 +24,11 @@ const initialState = {
   selectedItems: [],
   paymentMethod: null,
   orders: [],
+  userOrders: {
+    orders: [],
+    loading: false,
+    error: null
+  },
   currentOrder: null,
   taxRate: 0.12, // 12% tax rate
   // Make sure these are initialized properly
@@ -101,11 +106,42 @@ export const orderReducer = (state = initialState, action) => {
       case CREATE_ORDER_FAIL:
         return { ...state, loading: false, error: action.payload };
       case GET_USER_ORDERS_REQUEST:
-        return { ...state, loading: true };
+        console.log('GET_USER_ORDERS_REQUEST - starting fetch');
+        return { 
+          ...state, 
+          userOrders: { 
+            ...state.userOrders, 
+            loading: true, 
+            error: null 
+          } 
+        };
       case GET_USER_ORDERS_SUCCESS:
-        return { ...state, loading: false, orders: action.payload };
+        console.log('GET_USER_ORDERS_SUCCESS with payload:', 
+          Array.isArray(action.payload) ? 
+            `Array with ${action.payload.length} orders` : 
+            `Non-array: ${typeof action.payload}`);
+            
+        // Ensure we store an array even if the payload is invalid
+        const safeOrdersArray = Array.isArray(action.payload) ? action.payload : [];
+        
+        return { 
+          ...state, 
+          userOrders: { 
+            loading: false, 
+            orders: safeOrdersArray, 
+            error: null 
+          } 
+        };
       case GET_USER_ORDERS_FAIL:
-        return { ...state, loading: false, error: action.payload };
+        console.log('GET_USER_ORDERS_FAIL - Error:', action.payload);
+        return { 
+          ...state, 
+          userOrders: { 
+            ...state.userOrders, 
+            loading: false, 
+            error: action.payload 
+          } 
+        };
       case SET_SELECTED_ITEMS:
         console.log('orderReducer - Processing SET_SELECTED_ITEMS:', {
           payload: action.payload,

@@ -220,7 +220,7 @@ const Signup = () => {
         type: 'image/jpeg',
       });
       
-      const response = await fetch(`${API_URL}auth/upload-avatar`, {
+      const response = await fetch(`${API_URL}/auth/upload-avatar`, {
         method: 'POST',
         body: formData,
         headers: {

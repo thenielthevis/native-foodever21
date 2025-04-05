@@ -4,7 +4,7 @@ const protect = require('../middleware/protect');
 const { placeOrder, getUserOrders, deleteOrderedProducts, getAllOrders, updateOrder, getOrderById } = require('../controllers/order');
 
 router.post('/place-order', protect, placeOrder);
-router.get('/user-orders/:userId', protect, getUserOrders);
+router.get('/user-orders', protect, getUserOrders); // Remove :userId parameter
 router.delete('/delete-ordered-products', protect, deleteOrderedProducts);
 
 // Admin routes

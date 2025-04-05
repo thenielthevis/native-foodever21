@@ -375,15 +375,15 @@ const AdminRevenue = () => {
           <Text style={styles.sectionTitle}>Revenue Breakdown</Text>
           <View style={styles.breakdownCard}>
             <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Food Items:</Text>
+              <Text style={styles.breakdownLabel}>Rice Meal:</Text>
               <Text style={styles.breakdownValue}>₱{(metrics.total * 0.75).toFixed(2)} (75%)</Text>
             </View>
             <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Beverages:</Text>
+              <Text style={styles.breakdownLabel}>Pasta:</Text>
               <Text style={styles.breakdownValue}>₱{(metrics.total * 0.15).toFixed(2)} (15%)</Text>
             </View>
             <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Desserts:</Text>
+              <Text style={styles.breakdownLabel}>Sandwich:</Text>
               <Text style={styles.breakdownValue}>₱{(metrics.total * 0.1).toFixed(2)} (10%)</Text>
             </View>
             <View style={[styles.breakdownItem, styles.totalItem]}>

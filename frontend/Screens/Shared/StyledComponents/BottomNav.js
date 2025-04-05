@@ -159,6 +159,23 @@ const BottomNav = ({ navigation, activeRoute }) => {
         </View>
       </TouchableOpacity>
      
+      <TouchableOpacity
+        style={styles.tab}
+        onPress={() => navigation.navigate('UserOrdersScreen')}
+      >
+        <View style={styles.tabContent}>
+          <Ionicons
+            name={activeRoute === 'Orders' ? 'list' : 'list-outline'}
+            size={24}
+            color={activeRoute === 'Orders' ? '#ff9900' : '#666'}
+          />
+          <Text style={[
+            styles.tabLabel,
+            activeRoute === 'Orders' && styles.activeTabLabel
+          ]}>Orders</Text>
+        </View>
+      </TouchableOpacity>
+
       {userRole === 'admin' && (
         <TouchableOpacity
           style={styles.tab}

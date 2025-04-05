@@ -52,25 +52,35 @@ const UserProfile = ({ navigation }) => {
     try {
       const token = await SecureStore.getItemAsync("jwt");
       const userDataStr = await SecureStore.getItemAsync("userData");
-     
+       
       if (!token || !userDataStr) {
         throw new Error('No authentication data found');
       }
-
+  
       const userData = JSON.parse(userDataStr);
-     
+      console.log("Stored user data:", userData);
+       
       // Set basic user info from stored data
+      const photoURL = userData.userImage || userData.photoURL || 'https://via.placeholder.com/150';
       setUser({
         uid: userData.firebaseUid,
         displayName: userData.username,
         email: userData.email,
-        photoURL: userData.userImage || null, // Use userImage from userData
+        photoURL: photoURL,
         createdAt: new Date().toISOString(),
       });
-     
+       
       // Fetch additional data from backend
-      const userProfile = await getUserProfile(token);
-      if (!userProfile.error) {
+      const userProfile = await getUserProfile();
+      console.log("Backend user profile:", userProfile);
+      if (userProfile) {
+        // Update user state if backend has more recent image
+        if (userProfile.userImage) {
+          setUser(prev => ({
+            ...prev,
+            photoURL: userProfile.userImage
+          }));
+        }
         setBackendUser(userProfile);
         // Update user photoURL if backend has a different one
         if (userProfile.userImage && userProfile.userImage !== user?.photoURL) {
@@ -212,17 +222,21 @@ const UserProfile = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.profileCard}>
-            {user.photoURL ? (
-              <Image
-                source={{ uri: user.photoURL }}
-                style={styles.profileImage}
-                defaultSource={require('../../assets/defaults/profile-pic.png')} // Add a default image
-              />
-            ) : (
-              <View style={[styles.placeholderImage, { backgroundColor: '#FF8C42' }]}>
-                <FontAwesome name="user" size={40} color="#FFFFFF" />
-              </View>
-            )}
+            <Image
+              source={{ 
+                uri: user.photoURL,
+                headers: { 'Cache-Control': 'no-cache' }  // Add cache control
+              }}
+              style={styles.profileImage}
+              onError={(e) => {
+                console.log('Image loading error:', e.nativeEvent.error);
+                // Fallback to default image if loading fails
+                setUser(prev => ({
+                  ...prev,
+                  photoURL: 'https://via.placeholder.com/150'
+                }));
+              }}
+            />
             <Text style={styles.displayName}>{user.displayName}</Text>
             <Text style={styles.email}>{user.email}</Text>
            
