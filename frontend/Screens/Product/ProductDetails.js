@@ -11,6 +11,8 @@ import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import { API_URL } from '@env';
 
+const { width: windowWidth } = Dimensions.get('window');
+
 const ProductDetails = ({ route, navigation }) => {
   const { product } = route.params;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -573,7 +575,7 @@ const styles = StyleSheet.create({
     height: 300,
   },
   productImage: {
-    width: Dimensions.get('window').width,
+    width: windowWidth,  // Use windowWidth instead of width
     height: 300,
     resizeMode: 'contain',
   },

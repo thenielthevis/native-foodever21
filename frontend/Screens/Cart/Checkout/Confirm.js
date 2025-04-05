@@ -8,12 +8,12 @@ import { CommonActions } from '@react-navigation/native';
 import { getUserProfile } from '../../../Redux/Actions/Auth.actions';
 import axios from 'axios';
 import { API_URL } from '@env';
-import { clearCartData } from '../../../Redux/Actions/cartActions';
+import { clearCartData, clearSelectedItems } from '../../../Redux/Actions/cartActions';
 import { placeOrder } from '../../../Redux/Actions/orderActions';
 import * as SecureStore from 'expo-secure-store';
 
 const SHIPPING_FEE = 50;
-const windowWidth = Dimensions.get('window').width;
+const { width: windowWidth } = Dimensions.get('window');
 
 const Confirm = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -23,34 +23,59 @@ const Confirm = ({ navigation }) => {
   const selectedOrders = useSelector(state => state.cart.selectedOrders || []);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const userProfile = await getUserProfile();
-        console.log('[Confirm] MongoDB User profile:', {
-          username: userProfile.username,
-          mobileNumber: userProfile.mobileNumber,
-          address: userProfile.address,
-          email: userProfile.email
-        });
-       
-        if (!userProfile.mobileNumber || !userProfile.address) {
-          Alert.alert(
-            'Missing Information',
-            'Please update your profile with mobile number and address.'
-          );
-        }
-       
-        setUserData(userProfile);
-      } catch (error) {
-        console.error('[Confirm] Error fetching user profile:', error);
+    const checkAuth = async () => {
+      const token = await SecureStore.getItemAsync("jwt");
+      if (!token) {
         Alert.alert(
-          'Error',
-          'Failed to load user information. Please try again.'
+          'Login Required',
+          'Please sign in to complete your order',
+          [
+            {
+              text: 'Sign In',
+              onPress: () => navigation.navigate('Signin')
+            },
+            {
+              text: 'Cancel',
+              onPress: () => navigation.goBack(),
+              style: 'cancel'
+            }
+          ]
+        );
+        return;
+      }
+
+      fetchUserData();
+    };
+
+    checkAuth();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const userProfile = await getUserProfile();
+      console.log('[Confirm] MongoDB User profile:', {
+        username: userProfile.username,
+        mobileNumber: userProfile.mobileNumber,
+        address: userProfile.address,
+        email: userProfile.email
+      });
+     
+      if (!userProfile.mobileNumber || !userProfile.address) {
+        Alert.alert(
+          'Missing Information',
+          'Please update your profile with mobile number and address.'
         );
       }
-    };
-    fetchUserData();
-  }, []);
+     
+      setUserData(userProfile);
+    } catch (error) {
+      console.error('[Confirm] Error fetching user profile:', error);
+      Alert.alert(
+        'Error',
+        'Failed to load user information. Please try again.'
+      );
+    }
+  };
 
   if (!userData) {
     return (
@@ -94,13 +119,12 @@ const Confirm = ({ navigation }) => {
         total: calculateGrandTotal()
       };
 
-      // Dispatch the order action without passing navigation
+      // First place the order
       await dispatch(placeOrder(orderData));
-     
-      // Clear the cart after successful order
-      dispatch(clearCartData());
-     
-      // Show success message
+      
+      // Then clear selected items - note that we're calling dispatch here
+      await dispatch(clearSelectedItems(selectedOrders));
+      
       Alert.alert(
         "Order Placed Successfully",
         "Your order has been placed successfully!",
@@ -108,15 +132,10 @@ const Confirm = ({ navigation }) => {
           {
             text: "OK",
             onPress: () => {
-              // Use CommonActions to reset navigation and go directly to the main navigator with Home selected
               navigation.dispatch(
                 CommonActions.reset({
                   index: 0,
-                  routes: [
-                    {
-                      name: 'Home',
-                    }
-                  ]
+                  routes: [{ name: 'Home' }]
                 })
               );
             }
@@ -301,6 +320,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 15,
+    marginTop: 15,
   },
   infoItem: {
     flexDirection: 'row',

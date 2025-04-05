@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   StyleSheet,
   View,
@@ -16,8 +17,7 @@ import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomNav from '../Shared/StyledComponents/BottomNav';
 import { getUserProfile, logoutUser } from "../../Redux/Actions/Auth.actions";
-import { useUser } from '../../Redux/Store/AuthGlobal';
-import { useFocusEffect } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux'; // Add this
 import * as SecureStore from 'expo-secure-store';
 import { SET_CART_COUNT } from '../../Redux/Constants/cartConstants';
 import { clearCartData } from '../../Redux/Actions/cartActions';
@@ -43,7 +43,7 @@ const UserProfile = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [backendUser, setBackendUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { dispatch } = useUser();
+  const dispatch = useDispatch(); // Fix: Use useDispatch hook directly instead of useUser
 
   const fetchUserData = async () => {
     setLoading(true);
@@ -80,6 +80,10 @@ const UserProfile = ({ navigation }) => {
           }));
         }
         setBackendUser(userProfile);
+        // Update user photoURL if backend has a different one
+        if (userProfile.userImage && userProfile.userImage !== user?.photoURL) {
+          setUser(prev => ({ ...prev, photoURL: userProfile.userImage }));
+        }
       }
     } catch (error) {
       console.error("Failed to fetch user data:", error);
@@ -144,7 +148,7 @@ const UserProfile = ({ navigation }) => {
         colors={[COLORS.primary, COLORS.secondary, COLORS.background]}
         style={styles.centeredContainer}
       >
-        <StatusBar barStyle="light-content" />
+        <StatusBar backgroundColor="white" barStyle="dark-content" />
         <ActivityIndicator size="large" color={COLORS.white} />
       </LinearGradient>
     );
@@ -157,7 +161,7 @@ const UserProfile = ({ navigation }) => {
         colors={[COLORS.primary, COLORS.secondary, COLORS.background]}
         style={styles.centeredContainer}
       >
-        <StatusBar barStyle="light-content" />
+        <StatusBar backgroundColor="white" barStyle="dark-content" />
         <Text style={styles.errorText}>
           You are not signed in. Please sign in to view your profile.
         </Text>
@@ -174,7 +178,7 @@ const UserProfile = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar backgroundColor="white" barStyle="dark-content" />
       <LinearGradient
         colors={[COLORS.primary, COLORS.secondary, COLORS.background]}
         style={[styles.gradientBackground, { paddingTop: insets.top }]}
@@ -289,7 +293,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 15,
     paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.05)',
     elevation: 2,
@@ -333,6 +337,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 3,
     borderColor: COLORS.primary,
+  },
+  placeholderImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#FF8C42',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
   },
   displayName: {
     fontSize: 22,

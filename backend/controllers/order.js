@@ -1,6 +1,5 @@
 const Order = require('../models/Order');
 const User = require('../models/userModel');
-const OrderList = require('../models/Orderlist');
 
 // Place a new order
 exports.placeOrder = async (req, res) => {
@@ -128,10 +127,9 @@ exports.getUserOrders = async (req, res) => {
 
 exports.deleteOrderedProducts = async (req, res) => {
   try {
-    const { userId, productIds } = req.body;
-    console.log('Deleting products:', { userId, productIds });
-
-    if (!userId || !Array.isArray(productIds) || productIds.length === 0) {
+    const { userId } = req.body;
+    
+    if (!userId) {
       return res.status(400).json({ 
         success: false,
         message: 'Invalid request data' 
@@ -146,23 +144,15 @@ exports.deleteOrderedProducts = async (req, res) => {
       });
     }
 
-    const result = await OrderList.deleteMany({
-      user_id: user._id,
-      product_id: { $in: productIds }
-    });
-
-    console.log('Delete result:', result);
-
     res.status(200).json({ 
       success: true,
-      message: 'Ordered products removed successfully',
-      deletedCount: result.deletedCount
+      message: 'Operation completed successfully'
     });
   } catch (error) {
-    console.error('Error removing ordered products:', error);
+    console.error('Error in operation:', error);
     res.status(500).json({ 
       success: false,
-      message: 'Failed to remove products from cart' 
+      message: 'Internal server error' 
     });
   }
 };

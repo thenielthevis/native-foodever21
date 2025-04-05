@@ -36,13 +36,11 @@ export const listProducts = () => async (dispatch) => {
     });
     console.log('Products received:', data.products);
 
-
     // Transform the data to ensure image URLs are correct
     const transformedProducts = data.products.map(product => ({
       ...product,
       image: product.images && product.images.length > 0 ? product.images[0].url : null
     }));
-
 
     dispatch({
       type: PRODUCT_LIST_SUCCESS,
@@ -147,13 +145,11 @@ export const createProductReview = (productId, review) => async (dispatch) => {
   }
 };
 
-
 // Create product action
 export const createProduct = (productData) => async (dispatch) => {
   try {
     dispatch({ type: PRODUCT_CREATE_REQUEST });
     console.log('Creating new product:', productData.name);
-
 
     const formData = new FormData();
    
@@ -164,7 +160,6 @@ export const createProduct = (productData) => async (dispatch) => {
     formData.append('category', productData.category);
     formData.append('status', productData.status);
     formData.append('discount', productData.discount);
-
 
     // Add images to formData
     if (productData.images && productData.images.length > 0) {
@@ -188,7 +183,6 @@ export const createProduct = (productData) => async (dispatch) => {
       console.log('No images provided for new product');
     }
 
-
     const config = {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -196,11 +190,9 @@ export const createProduct = (productData) => async (dispatch) => {
       withCredentials: true
     };
 
-
     console.log('Sending create product request');
     const { data } = await axios.post(`${API_URL}/admin/product/create`, formData, config);
     console.log('Product created successfully:', data.product.name);
-
 
     dispatch({
       type: PRODUCT_CREATE_SUCCESS,
@@ -374,7 +366,6 @@ export const updateProduct = (id, productData) => async (dispatch) => {
     dispatch({ type: PRODUCT_UPDATE_REQUEST });
     console.log(`Updating product ID: ${id}`);
 
-
     const formData = new FormData();
    
     // Add product details to formData - ensure all are strings and properly formatted
@@ -385,14 +376,12 @@ export const updateProduct = (id, productData) => async (dispatch) => {
     formData.append('status', productData.status);
     formData.append('discount', productData.discount.toString());
 
-
     // Debug what we're sending
     Object.keys(productData).forEach(key => {
       if (key !== 'images') {
         console.log(`Field ${key}:`, productData[key]);
       }
     });
-
 
     // Add images to formData if they exist
     if (productData.images && productData.images.length > 0) {
@@ -431,14 +420,12 @@ export const updateProduct = (id, productData) => async (dispatch) => {
       console.log('No images provided');
     }
 
-
     const config = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
       withCredentials: true
     };
-
 
     console.log('Sending update request to server');
     const { data } = await axios.put(`${API_URL}/admin/product/update/${id}`, formData, config);
@@ -466,12 +453,10 @@ export const updateProduct = (id, productData) => async (dispatch) => {
   }
 };
 
-
 // Delete product action
 export const deleteProduct = (id) => async (dispatch) => {
   try {
     dispatch({ type: PRODUCT_DELETE_REQUEST });
-
 
     const config = {
       headers: {
@@ -480,9 +465,7 @@ export const deleteProduct = (id) => async (dispatch) => {
       withCredentials: true
     };
 
-
     await axios.delete(`${API_URL}/admin/product/delete/${id}`, config);
-
 
     dispatch({
       type: PRODUCT_DELETE_SUCCESS
@@ -495,12 +478,10 @@ export const deleteProduct = (id) => async (dispatch) => {
   }
 };
 
-
 // Delete multiple products action
 export const deleteBulkProducts = (ids) => async (dispatch) => {
   try {
     dispatch({ type: PRODUCT_DELETE_REQUEST });
-
 
     const config = {
       headers: {
@@ -509,9 +490,7 @@ export const deleteBulkProducts = (ids) => async (dispatch) => {
       withCredentials: true
     };
 
-
     await axios.post(`${API_URL}/admin/products/deletebulk`, { ids }, config);
-
 
     dispatch({
       type: PRODUCT_DELETE_SUCCESS

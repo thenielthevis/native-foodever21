@@ -116,56 +116,84 @@ exports.deleteUser = async (req, res) => {
 
 // Modify the login function to check user status
 exports.login = async (req, res) => {
-  const { email, uid } = req.body;
-
+  const { email, uid, displayName, photoURL } = req.body;
 
   try {
-    console.log('Login request received for:', email);
-   
-    let user = await User.findOne({ firebaseUid: uid });
-   
-    if (!user) {
-      console.log('Creating new user in MongoDB for:', email);
-      user = await User.create({
-        email,
-        firebaseUid: uid,
-        username: email.split('@')[0],
-        role: 'user',
-        status: 'active'
+    console.log('Login request received:', { email, uid, displayName });
+    
+    if (!email || !uid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and Firebase UID are required'
       });
     }
 
+    let user = await User.findOne({ firebaseUid: uid });
+    
+    if (!user) {
+      console.log('Creating new user in MongoDB for:', email);
+      user = new User({
+        email,
+        firebaseUid: uid, // Make sure this is set
+        username: displayName || email.split('@')[0],
+        isGoogleAuth: true,
+        role: 'user',
+        status: 'active',
+        userImage: photoURL || null
+      });
 
-    // Check if user is active before allowing login
+      await user.save();
+      console.log('New user created:', { email, uid });
+
+      // Create Firestore document
+      try {
+        await db.collection('users').doc(uid).set({
+          email,
+          displayName: displayName || email.split('@')[0],
+          photoURL: photoURL || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastLogin: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (firestoreError) {
+        console.warn('Firestore document creation failed:', firestoreError);
+      }
+    }
+
+    // Check if user is active
     if (user.status === 'inactive') {
       console.log(`User ${email} is inactive. Login denied.`);
       return res.status(403).json({
         success: false,
-        message: 'Your account has been deactivated. Please contact customer support for assistance.'
+        message: 'Your account has been deactivated. Please contact customer support.'
       });
     }
 
+    // Update Firestore last login
+    try {
+      await db.collection('users').doc(uid).update({
+        lastLogin: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (error) {
+      console.warn('Failed to update Firestore last login:', error);
+    }
 
-    console.log('User found/created:', {
+    console.log('User authenticated successfully:', {
       id: user._id,
       email: user.email,
-      username: user.username,
-      status: user.status
+      username: user.username
     });
 
-
-    // Send complete user data in response
     res.status(200).json({
       success: true,
       message: 'User logged in successfully',
       user: {
-        _id: user._id.toString(), // Convert ObjectId to string
+        _id: user._id.toString(),
         username: user.username,
         email: user.email,
         role: user.role || 'user',
         status: user.status || 'active',
         firebaseUid: user.firebaseUid,
-        avatarURL: user.userImage || null
+        userImage: user.userImage || photoURL || null
       }
     });
   } catch (error) {

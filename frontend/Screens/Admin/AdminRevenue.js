@@ -6,7 +6,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllOrders } from '../../Redux/Actions/orderActions';
-import { BarChart, LineChart } from '../../utils/fix-chart-kit';
+// import { BarChart, LineChart } from 'react-native-gifted-charts'; // Comment out chart imports
+import { SCREEN_WIDTH } from '../../utils/dimensions';
 
 
 const AdminRevenue = () => {
@@ -229,46 +230,57 @@ const AdminRevenue = () => {
   const metrics = calculateSummaryMetrics();
   const activeChartData = getActiveChartData();
  
-  // Render the chart based on type
+  // Comment out the renderChart function temporarily
+  /*
   const renderChart = () => {
     if (!activeChartData) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No chart data available</Text>
-        </View>
-      );
+      return <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No chart data available</Text>
+      </View>;
     }
-   
-    const chartProps = {
+  
+    const commonConfig = {
       data: activeChartData,
-      width: Dimensions.get('window').width - 40,
+      width: SCREEN_WIDTH - 70,
       height: 220,
-      chartConfig: {
-        backgroundColor: '#ffffff',
-        backgroundGradientFrom: '#ffffff',
-        backgroundGradientTo: '#ffffff',
-        decimalPlaces: 0,
-        color: (opacity = 1) => `rgba(156, 39, 176, ${opacity})`,
-        labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-        style: { borderRadius: 16 },
-        barPercentage: 0.6,
-      },
-      style: styles.chart,
-      fromZero: true,
-      yAxisSuffix: "₱"
+      frontColor: '#9C27B0',
+      gradientColor: '#E1BEE7',
+      yAxisColor: "lightgray",
+      xAxisColor: "lightgray",
+      yAxisTextStyle: { color: '#666' },
+      xAxisLabelTextStyle: { color: '#666' },
+      rulesType: 'solid',
+      rulesColor: '#E5E5E5',
+      showFractionalValues: true,
     };
-   
+  
     return (
       <View style={styles.chartContainer}>
         {chartType === 'bar' ? (
-          <BarChart {...chartProps} showValuesOnTopOfBars={true} />
+          <BarChart
+            {...commonConfig}
+            barWidth={30}
+            spacing={20}
+            initialSpacing={10}
+          />
         ) : (
-          <LineChart {...chartProps} bezier />
+          <LineChart
+            {...commonConfig}
+            curved
+            spacing={20}
+            initialSpacing={10}
+            color="#9C27B0"
+            thickness={3}
+            hideDataPoints
+            hideRules
+            areaChart
+          />
         )}
       </View>
     );
   };
- 
+  */
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -298,6 +310,7 @@ const AdminRevenue = () => {
         </View>
        
         {/* Chart Controls */}
+        {/*
         <View style={styles.controlsContainer}>
           <View style={styles.chartTypeButtons}>
             <TouchableOpacity
@@ -342,8 +355,10 @@ const AdminRevenue = () => {
             </TouchableOpacity>
           </View>
         </View>
+        */}
        
         {/* Revenue Chart Section */}
+        {/*
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>{getChartTitle()}</Text>
           {(adminOrdersLoading || isLoading || !activeChartData) ? (
@@ -353,7 +368,8 @@ const AdminRevenue = () => {
             </View>
           ) : renderChart()}
         </View>
-       
+        */}
+
         {/* Revenue Breakdown Section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Revenue Breakdown</Text>

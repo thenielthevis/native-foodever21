@@ -31,49 +31,49 @@ const CartScreen = () => {
   useEffect(() => {
     const initCart = async () => {
       try {
-        setIsInitializing(true);  // Start loading
-        const token = await SecureStore.getItemAsync("jwt");
-        const userData = await SecureStore.getItemAsync("userData");
+        setIsInitializing(true);
         
-        if (!token || !userData) {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Signin' }],
-          });
-          return;
-        }
-
+        // Initialize SQLite and load cached data
         try {
-          // Initialize SQLite
           await initDatabase();
           console.log('Database initialized');
           
-          // Load cached data
-          const userDataObj = JSON.parse(userData);
-          const cachedItems = await getCartItems(userDataObj._id);
+          // Load cached items directly without user ID
+          const cachedItems = await getCartItems();
           console.log('Cached items:', cachedItems);
           
           if (cachedItems && cachedItems.length > 0) {
             dispatch({
               type: 'GET_ORDER_LIST_SUCCESS',
-              payload: cachedItems
+              payload: cachedItems.map(item => ({
+                order_id: item.id.toString(),
+                product: {
+                  id: item.product_id,
+                  name: item.product_name,
+                  price: item.product_price,
+                  image: item.product_image
+                },
+                quantity: item.quantity
+              }))
             });
           }
         } catch (dbError) {
           console.error('Database error:', dbError);
-          // Continue with API fetch even if local DB fails
         }
 
-        // Fetch fresh data from server
-        await Promise.all([
-          dispatch(getUserOrderList()),
-          dispatch(fetchOrderCount())
-        ]);
+        // Try to sync with server if user is logged in
+        const token = await SecureStore.getItemAsync("jwt");
+        if (token) {
+          await Promise.all([
+            dispatch(getUserOrderList()),
+            dispatch(fetchOrderCount())
+          ]);
+        }
 
       } catch (error) {
         console.error('Error initializing cart:', error);
       } finally {
-        setIsInitializing(false);  // End loading
+        setIsInitializing(false);
       }
     };
     
@@ -91,6 +91,7 @@ const CartScreen = () => {
       await dispatch(updateCartQuantity(orderId, newQuantity));
     } catch (error) {
       console.error('Error updating quantity:', error);
+      Alert.alert('Error', 'Failed to update quantity');
     } finally {
       setLoading(false);
     }
@@ -113,8 +114,29 @@ const CartScreen = () => {
     }, 0);
   };
 
-  const handleDelete = (orderId) => {
-    dispatch(removeFromCart(orderId));
+  const handleDelete = async (orderId) => {
+    Alert.alert(
+      'Remove Item',
+      'Are you sure you want to remove this item from cart?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await dispatch(removeFromCart(orderId));
+            } catch (error) {
+              console.error('Error removing item:', error);
+              Alert.alert('Error', 'Failed to remove item');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleOrderNow = () => {

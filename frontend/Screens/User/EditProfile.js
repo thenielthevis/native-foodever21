@@ -8,7 +8,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Image
+  Image,
+  StatusBar
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from "react-native-vector-icons/FontAwesome";
@@ -171,6 +172,7 @@ const EditProfile = ({ route, navigation }) => {
       colors={['#FF8C42', '#F9A826', '#FFF1D0']}
       style={[styles.container, { paddingTop: insets.top }]}
     >
+      <StatusBar backgroundColor="white" barStyle="dark-content" />
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -189,10 +191,11 @@ const EditProfile = ({ route, navigation }) => {
               <Image
                 source={{ uri: imageURI }}
                 style={styles.profileImage}
+                defaultSource={require('../../assets/defaults/profile-pic.png')} // Add a default image
               />
             ) : (
-              <View style={styles.placeholderImage}>
-                <FontAwesome name="user" size={40} color="#FF8C42" />
+              <View style={[styles.placeholderImage, { backgroundColor: '#FF8C42' }]}>
+                <FontAwesome name="user" size={40} color="#FFFFFF" />
               </View>
             )}
             <View style={styles.editIconContainer}>
@@ -279,7 +282,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 15,
     paddingVertical: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
@@ -287,7 +290,7 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -324,11 +327,11 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: '#FF8C42', // Changed to match UserProfile color scheme
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#FF8C42',
+    borderColor: '#FFFFFF',
   },
   editIconContainer: {
     position: 'absolute',

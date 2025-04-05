@@ -27,7 +27,7 @@ const CartModal = ({ visible, onClose, product }) => {
   const handleAddToCart = async () => {
     try {
       setIsLoading(true);
-      const result = await dispatch(addToCart(product._id, quantity));
+      const result = await dispatch(addToCart(product, quantity));
       
       if (result.success) {
         ToastAndroid.show(
@@ -44,7 +44,7 @@ const CartModal = ({ visible, onClose, product }) => {
       }
     } catch (err) {
       ToastAndroid.show(
-        'Please login to add items to cart',
+        'Failed to add item to cart',
         ToastAndroid.SHORT
       );
     } finally {

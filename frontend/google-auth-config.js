@@ -7,6 +7,6 @@ export const IOS_CLIENT_ID = ""; // Add your iOS client ID when available
 
 // Configuration for @react-native-google-signin/google-signin
 export const GOOGLE_SIGNIN_CONFIG = {
-  webClientId: WEB_CLIENT_ID,
-  offlineAccess: true,
+  webClientId: "411310768407-a6l9sff0ni31a224d1rqmoq0to0qf7hg.apps.googleusercontent.com",
+  offlineAccess: true
 };

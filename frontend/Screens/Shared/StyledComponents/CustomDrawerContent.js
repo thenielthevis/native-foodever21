@@ -20,6 +20,7 @@ import { COLORS, FONTS, SHADOWS } from '../../../constants/theme';
 
 const CustomDrawerContent = props => {
   const [userData, setUserData] = useState(null);
+  const [isDrawerReady, setIsDrawerReady] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -31,6 +32,8 @@ const CustomDrawerContent = props => {
         }
       } catch (error) {
         console.log('Error fetching user data:', error);
+      } finally {
+        setIsDrawerReady(true);
       }
     };
 
@@ -81,6 +84,27 @@ const CustomDrawerContent = props => {
     Linking.openURL(url).catch(err => console.error('Error opening URL:', err));
   };
 
+  const handleNavigation = (routeName) => {
+    if (!props.navigation || !routeName) {
+      console.log('Navigation or route name is missing');
+      return;
+    }
+
+    try {
+      if (props.navigation.getParent()) {
+        props.navigation.getParent().navigate(routeName);
+      } else {
+        props.navigation.navigate(routeName);
+      }
+    } catch (error) {
+      console.log('Navigation error:', error);
+    }
+  };
+
+  if (!isDrawerReady) {
+    return null; // or a loading spinner
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -117,7 +141,7 @@ const CustomDrawerContent = props => {
               <Text style={styles.userEmail}>{userData.email || ''}</Text>
               <TouchableOpacity 
                 style={styles.viewProfileButton}
-                onPress={() => props.navigation.getParent()?.navigate('UserProfile')}
+                onPress={() => handleNavigation('UserProfile')}
               >
                 <Text style={styles.viewProfileText}>My Profile</Text>
                 <Ionicons name="chevron-forward" size={12} color={COLORS.primary} />
@@ -127,7 +151,7 @@ const CustomDrawerContent = props => {
         ) : (
           <TouchableOpacity 
             style={styles.signInButton}
-            onPress={() => props.navigation.getParent()?.navigate('SignIn')}
+            onPress={() => handleNavigation('Signin')}
           >
             <Text style={styles.signInText}>Sign In / Sign Up</Text>
             <View style={styles.signInIconContainer}>

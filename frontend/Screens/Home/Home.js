@@ -170,7 +170,7 @@ const Home = ({ navigation }) => {
 
   const handleLogin = () => {
     setShowTokenExpiredModal(false);
-    navigation.navigate('SignIn');
+    navigation.navigate('Signin');
   };
 
   const handleClose = () => {

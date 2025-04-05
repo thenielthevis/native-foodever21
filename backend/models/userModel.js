@@ -8,16 +8,22 @@ const userSchema = new mongoose.Schema({
     email: {
         type: String,
         required: [true, 'Please provide an email'],
-        // unique: true,
     },
     password: {
         type: String,
-        required: [true, 'Please provide a password'],
+        required: function() {
+            // Only require password for non-Google auth users
+            return !this.isGoogleAuth;
+        },
     },
     firebaseUid: {
         type: String,
         required: [true, 'Firebase UID is required'],
         unique: true,
+    },
+    isGoogleAuth: {
+        type: Boolean,
+        default: false
     },
     role: {
         type: String,

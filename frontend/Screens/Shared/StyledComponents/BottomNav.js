@@ -26,21 +26,21 @@ const BottomNav = ({ navigation, activeRoute }) => {
   };
 
   const handleCartPress = async () => {
-    const token = await SecureStore.getItemAsync("jwt");
-    if (!token) {
-      navigation.navigate('Signin');
-      return;
-    }
-    // Navigate directly to CartScreen through the DrawerNavigator
+    // const token = await SecureStore.getItemAsync("jwt");
+    // if (!token) {
+    //   navigation.navigate('Signin');
+    //   return;
+    // }
+    // // Navigate directly to CartScreen through the DrawerNavigator
     navigation.navigate('CartScreen');
   };
 
   useEffect(() => {
-    getUserData(); // Get user role when component mounts
-    dispatch(fetchOrderCount());
+    getUserData();
+    dispatch(fetchOrderCount()); // This now uses SQLite
     const interval = setInterval(() => {
-      dispatch(fetchOrderCount());
-    }, 30000);
+      dispatch(fetchOrderCount()); // This now uses SQLite
+    }, 5000); // Reduced interval since we're checking local storage
     return () => clearInterval(interval);
   }, [dispatch]);
 

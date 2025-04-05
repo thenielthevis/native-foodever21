@@ -26,90 +26,34 @@ import {
 } from '../../Redux/Actions/productActions';
 import { PRODUCT_CREATE_RESET, PRODUCT_UPDATE_RESET } from '../../Redux/Constants/productConstants';
 import { debounce } from 'lodash';
+import { SCREEN_WIDTH } from '../../utils/dimensions';
 
+const AdminProducts = ({ navigation }) => {
+  const dispatch = useDispatch();
+  
+  // Update the Redux selectors to include error states
+  const { 
+    loading, 
+    error, 
+    products 
+  } = useSelector(state => state.productList);
+  
+  const { 
+    success: createSuccess,
+    error: createError 
+  } = useSelector(state => state.productCreate);
 
-// Import your product store
-import productStore from '../../Redux/Store/productStore';
+  const { 
+    success: updateSuccess,
+    error: updateError 
+  } = useSelector(state => state.productUpdate);
 
+  const { success: deleteSuccess } = useSelector(state => state.productDelete);
 
-const { width } = Dimensions.get('window');
-
-
-// Change the custom store integration approach to avoid infinite loops
-const AdminProducts = () => {
-  // Use refs to prevent recreation on each render
-  const productStoreDispatch = React.useRef(productStore.dispatch);
-  const productStoreGetState = React.useRef(() => productStore.getState());
- 
-  // Get initial state
-  const [productState, setProductState] = useState(productStoreGetState.current());
- 
-  // Set up a subscription to productStore once on component mount
+  // Initial data fetch
   useEffect(() => {
-    console.log('Setting up store subscription and fetching products');
-   
-    // Initial products fetch
-    productStoreDispatch.current(listProducts());
-   
-    const unsubscribe = productStore.subscribe(() => {
-      const newState = productStoreGetState.current();
-      console.log('Store updated:', {
-        products: newState.productList?.products?.length || 0,
-        createSuccess: newState.productCreate?.success,
-        updateSuccess: newState.productUpdate?.success
-      });
-      setProductState(newState);
-    });
-   
-    return () => {
-      console.log('Cleaning up store subscription');
-      unsubscribe();
-    };
-  }, []);
- 
-  // Extract state values safely with defaults
-  const { loading = false, error = null, products = [] } = productState.productList || {};
-  const { success: createSuccess, error: createError } = productState.productCreate || {};
-  const { success: updateSuccess, error: updateError } = productState.productUpdate || {};
-  const { success: deleteSuccess, error: deleteError } = productState.productDelete || {};
-
-
-  // Create a stable dispatch function
-  const dispatch = useCallback((action) => {
-    console.log('Dispatching action:', action.type);
-    productStoreDispatch.current(action);
-  }, []);
-
-
-  // Handle success states with proper dependencies
-  useEffect(() => {
-    if (createSuccess) {
-      console.log('Product created successfully, resetting form');
-      setIsModalVisible(false);
-      resetForm();
-      dispatch({ type: PRODUCT_CREATE_RESET });
-      dispatch(listProducts());
-    }
-  }, [createSuccess, dispatch]);
- 
-  useEffect(() => {
-    if (updateSuccess) {
-      console.log('Product updated successfully, resetting form');
-      setIsModalVisible(false);
-      resetForm();
-      dispatch({ type: PRODUCT_UPDATE_RESET });
-      dispatch(listProducts());
-    }
-  }, [updateSuccess, dispatch]);
- 
-  useEffect(() => {
-    if (deleteSuccess) {
-      console.log('Product(s) deleted successfully, refreshing list');
-      setSelectedProducts([]);
-      dispatch(listProducts());
-    }
-  }, [deleteSuccess, dispatch]);
-
+    dispatch(listProducts());
+  }, [dispatch]);
 
   // Modal and form states
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -125,7 +69,29 @@ const AdminProducts = () => {
     discount: '0',
     images: []
   });
- 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Update useEffect to handle success states without alerts
+  useEffect(() => {
+    if (isSubmitting) {
+      if (createSuccess || updateSuccess || deleteSuccess) {
+        setIsModalVisible(false);
+        setIsSubmitting(false);
+        resetForm();
+        setSelectedProducts([]); // Clear selection after delete
+        dispatch(listProducts()); // Refresh the products list
+        
+        // Reset success states
+        if (createSuccess) {
+          dispatch({ type: PRODUCT_CREATE_RESET });
+        }
+        if (updateSuccess) {
+          dispatch({ type: PRODUCT_UPDATE_RESET });
+        }
+      }
+    }
+  }, [createSuccess, updateSuccess, deleteSuccess, isSubmitting]);
+
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -150,7 +116,6 @@ const AdminProducts = () => {
     });
   };
 
-
   // Debounce search to improve performance
   const debouncedSearch = useCallback(
     debounce(text => {
@@ -158,7 +123,6 @@ const AdminProducts = () => {
     }, 300),
     []
   );
-
 
   const resetForm = () => {
     setProductForm({
@@ -174,7 +138,6 @@ const AdminProducts = () => {
     setIsEditMode(false);
   };
 
-
   const resetFilters = () => {
     setSearchQuery('');
     setCategoryFilter('All');
@@ -182,13 +145,11 @@ const AdminProducts = () => {
     setIsFilterVisible(false);
   };
 
-
   // Form handling functions
   const handleAddProduct = () => {
     setIsModalVisible(true);
     resetForm();
   };
-
 
   const handleEditProduct = (product) => {
     setIsEditMode(true);
@@ -205,39 +166,35 @@ const AdminProducts = () => {
     setIsModalVisible(true);
   };
 
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!productForm.name || !productForm.description || !productForm.price) {
       Alert.alert('Error', 'Please fill all required fields');
       return;
     }
 
+    setIsSubmitting(true);
 
-    // Create a clean object with properly formatted values
-    const productData = {
-      name: productForm.name.trim(),
-      description: productForm.description.trim(),
-      price: parseFloat(productForm.price),
-      category: productForm.category,
-      status: productForm.status,
-      discount: parseInt(productForm.discount || '0'),
-      images: productForm.images
-    };
+    try {
+      const productData = {
+        name: productForm.name.trim(),
+        description: productForm.description.trim(),
+        price: parseFloat(productForm.price),
+        category: productForm.category,
+        status: productForm.status,
+        discount: parseInt(productForm.discount || '0'),
+        images: productForm.images
+      };
 
-
-    console.log(`${isEditMode ? 'Updating' : 'Creating'} product:`, {
-      ...productData,
-      images: `${productData.images.length} images`
-    });
-
-
-    if (isEditMode) {
-      dispatch(updateProduct(productForm._id, productData));
-    } else {
-      dispatch(createProduct(productData));
+      if (isEditMode) {
+        await dispatch(updateProduct(productForm._id, productData));
+      } else {
+        await dispatch(createProduct(productData));
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Something went wrong');
+      setIsSubmitting(false);
     }
   };
-
 
   // Image handling functions
   const handleSelectImage = async () => {
@@ -248,14 +205,12 @@ const AdminProducts = () => {
       return;
     }
 
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
     });
-
 
     if (!result.canceled) {
       const newImage = {
@@ -269,7 +224,6 @@ const AdminProducts = () => {
     }
   };
 
-
   const handleRemoveImage = (index) => {
     const updatedImages = [...productForm.images];
     updatedImages.splice(index, 1);
@@ -278,7 +232,6 @@ const AdminProducts = () => {
       images: updatedImages
     });
   };
-
 
   // Selection and deletion functions
   const toggleProductSelection = (productId) => {
@@ -289,44 +242,29 @@ const AdminProducts = () => {
     }
   };
 
-
+  // Update handleDeleteSelected to remove alert
   const handleDeleteSelected = () => {
-    if (selectedProducts.length === 0) {
-      Alert.alert('Error', 'No products selected');
-      return;
+    if (selectedProducts.length === 0) return;
+    
+    setIsSubmitting(true);
+    try {
+      dispatch(deleteBulkProducts(selectedProducts));
+    } catch (err) {
+      setIsSubmitting(false);
     }
-
-
-    Alert.alert(
-      'Confirm Delete',
-      `Are you sure you want to delete ${selectedProducts.length} selected product(s)?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => dispatch(deleteBulkProducts(selectedProducts))
-        }
-      ]
-    );
   };
 
-
+  // Update handleDeleteSingleProduct to match bulk deletion pattern
   const handleDeleteSingleProduct = (productId) => {
-    Alert.alert(
-      'Confirm Delete',
-      'Are you sure you want to delete this product?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => dispatch(deleteProduct(productId))
-        }
-      ]
-    );
+    setIsSubmitting(true);
+    setSelectedProducts([productId]); // Add the single product ID to selectedProducts
+    try {
+      dispatch(deleteBulkProducts([productId])); // Use the same bulk delete action
+    } catch (err) {
+      setIsSubmitting(false);
+      setSelectedProducts([]); // Clear selection on error
+    }
   };
-
 
   // Render functions
   const renderProductItem = ({ item }) => (
@@ -396,9 +334,7 @@ const AdminProducts = () => {
     </View>
   );
 
-
   const filteredProducts = getFilteredProducts();
-
 
   return (
     <View style={styles.container}>
@@ -507,7 +443,6 @@ const AdminProducts = () => {
         </View>
       </View>
 
-
       {/* Results summary */}
       <View style={styles.resultsBar}>
         <Text style={styles.resultsText}>
@@ -515,7 +450,6 @@ const AdminProducts = () => {
           {(searchQuery || categoryFilter !== 'All' || statusFilter !== 'All') ? ' (filtered)' : ''}
         </Text>
       </View>
-
 
       {/* Product list */}
       {loading ? (
@@ -561,7 +495,6 @@ const AdminProducts = () => {
           windowSize={10}
         />
       )}
-
 
       {/* Product form modal */}
       <Modal
@@ -692,12 +625,21 @@ const AdminProducts = () => {
              
               <View style={styles.modalButtons}>
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.saveButton]}
+                  style={[
+                    styles.modalButton,
+                    styles.saveButton,
+                    isSubmitting && styles.disabledButton
+                  ]}
                   onPress={handleSubmit}
+                  disabled={isSubmitting}
                 >
-                  <Text style={styles.modalButtonText}>
-                    {isEditMode ? 'Update Product' : 'Create Product'}
-                  </Text>
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.modalButtonText}>
+                      {isEditMode ? 'Update Product' : 'Create Product'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -707,7 +649,6 @@ const AdminProducts = () => {
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -1070,8 +1011,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   imagePreviewContainer: {
-    width: (width - 80) / 3,
-    height: (width - 80) / 3,
+    width: (SCREEN_WIDTH - 80) / 3,
+    height: (SCREEN_WIDTH - 80) / 3,
     margin: 5,
     position: 'relative',
   },
@@ -1094,8 +1035,8 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   addImageButton: {
-    width: (width - 80) / 3,
-    height: (width - 80) / 3,
+    width: (SCREEN_WIDTH - 80) / 3,
+    height: (SCREEN_WIDTH - 80) / 3,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
@@ -1130,7 +1071,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  disabledButton: {
+    opacity: 0.7,
+  },
 });
-
 
 export default AdminProducts;
