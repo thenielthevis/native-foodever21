@@ -140,33 +140,119 @@ exports.updateOrder = async (req, res) => {
     const { orderId } = req.params;
     const { status } = req.body;
 
-    const order = await Order.findByIdAndUpdate(
-      orderId,
-      { status },
-      { new: true }
-    ).populate('userId', 'username email')
-     .populate('products.productId');
-
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
+    if (!orderId || !status) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Order ID and status are required' 
+      });
     }
 
+    // Validate status value
+    const validStatuses = ['shipping', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status value'
+      });
+    }
+
+    // Fetch and populate the complete order data
+    const updatedOrder = await Order.findById(orderId)
+      .populate('userId', 'username email firebaseUid')
+      .populate({
+        path: 'products.productId',
+        select: 'name price image'
+      });
+
+    if (!updatedOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    // Update status
+    updatedOrder.status = status.toLowerCase();
+    await updatedOrder.save();
+
+    // Format the response with complete order details
+    const formattedOrder = {
+      id: updatedOrder._id,
+      userId: updatedOrder.userId.firebaseUid,
+      orderNumber: `ORD-${updatedOrder._id.toString().slice(-4)}`,
+      customer: updatedOrder.userId.username,
+      date: updatedOrder.createdAt,
+      status: updatedOrder.status,
+      paymentMethod: updatedOrder.paymentMethod,
+      products: updatedOrder.products.map(item => ({
+        productId: {
+          name: item.productId.name,
+          price: item.productId.price,
+          image: item.productId.image
+        },
+        quantity: item.quantity
+      })),
+      amount: updatedOrder.products.reduce((total, item) => 
+        total + (item.productId.price * item.quantity), 0
+      )
+    };
+
     res.json({
+      success: true,
+      order: formattedOrder
+    });
+
+  } catch (error) {
+    console.error('Error updating order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating order status',
+      error: error.message
+    });
+  }
+};
+
+exports.getOrderById = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.orderId)
+      .populate('userId', 'username email firebaseUid')
+      .populate('products.productId');
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    // Format the order data
+    const formattedOrder = {
       id: order._id,
+      userId: order.userId.firebaseUid,
       orderNumber: `ORD-${order._id.toString().slice(-4)}`,
       customer: order.userId.username,
       date: order.createdAt,
-      amount: order.products.reduce((total, item) => 
-        total + (item.productId.price * item.quantity), 0),
       status: order.status,
-      items: order.products.map(item => ({
-        name: item.productId.name,
-        quantity: item.quantity,
-        price: item.productId.price
-      }))
-    });
+      paymentMethod: order.paymentMethod,
+      products: order.products.map(item => ({
+        productId: {
+          name: item.productId.name,
+          price: item.productId.price,
+          image: item.productId.image
+        },
+        quantity: item.quantity
+      })),
+      amount: order.products.reduce((total, item) => 
+        total + (item.productId.price * item.quantity), 0
+      )
+    };
+
+    res.json(formattedOrder);
   } catch (error) {
-    console.error('Error updating order:', error);
-    res.status(500).json({ message: 'Error updating order' });
+    console.error('Error fetching order:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching order details'
+    });
   }
 };

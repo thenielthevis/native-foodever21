@@ -29,7 +29,7 @@ export const listProducts = () => async (dispatch) => {
       },
       withCredentials: true
     });
-    console.log('Products received:', data.products);
+    // console.log('Products received:', data.products);
 
     // Transform the data to ensure image URLs are correct
     const transformedProducts = data.products.map(product => ({
@@ -138,7 +138,7 @@ export const createProduct = (productData) => async (dispatch) => {
 export const updateProduct = (id, productData) => async (dispatch) => {
   try {
     dispatch({ type: PRODUCT_UPDATE_REQUEST });
-    console.log(`Updating product ID: ${id}`);
+    console.log(`Updating product ID: ${id}, discount: ${productData.discount}`);
 
     const formData = new FormData();
    
@@ -205,25 +205,29 @@ export const updateProduct = (id, productData) => async (dispatch) => {
     const { data } = await axios.put(`${API_URL}/admin/product/update/${id}`, formData, config);
    
     if (data.success) {
-      console.log('Update successful, received product data:', {
+      console.log('Product update successful:', {
         id: data.product._id,
         name: data.product.name,
-        description: data.product.description
+        discount: data.product.discount
       });
      
       dispatch({
         type: PRODUCT_UPDATE_SUCCESS,
         payload: data.product
       });
+
+      // Return the updated product data for the notification
+      return data.product;
     } else {
       throw new Error(data.message || 'Update failed');
     }
   } catch (error) {
-    console.error('Error updating product:', error.response?.data || error.message);
+    console.error('Error updating product:', error);
     dispatch({
       type: PRODUCT_UPDATE_FAIL,
       payload: error.response?.data?.message || error.message
     });
+    throw error;
   }
 };
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+import { View } from 'react-native';
 
 import Home from '../Screens/Home/Home';
 import UserProfile from '../Screens/User/UserProfile';
@@ -24,19 +25,24 @@ const DrawerNavigator = () => {
         console.log('Error checking user data:', error);
         setHasUserData(false);
       } finally {
-        setIsInitialized(true);
+        // Add a small delay to ensure smooth initialization
+        setTimeout(() => {
+          setIsInitialized(true);
+        }, 100);
       }
     };
     
     checkUserData();
   }, []);
 
+  // Return empty view while initializing instead of null
   if (!isInitialized) {
-    return null; // or a loading spinner
+    return <View style={{ flex: 1, backgroundColor: '#fff' }} />;
   }
 
   return (
     <Drawer.Navigator
+      useLegacyImplementation={false}
       drawerContent={props => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: false,

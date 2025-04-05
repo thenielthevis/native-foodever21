@@ -4,11 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchOrderCount } from '../../../Redux/Actions/cartActions';
 import * as SecureStore from 'expo-secure-store';
+import { getUnreadCount } from '../../../services/notificationsDB';
 
 const BottomNav = ({ navigation, activeRoute }) => {
   const dispatch = useDispatch();
-  const { cartCount = 0 } = useSelector(state => state.cart || { cartCount: 0 });
+  const cartCount = useSelector(state => state.cart?.cartCount || 0);
   const [userRole, setUserRole] = useState('user'); // Change to use local state
+  const [notificationCount, setNotificationCount] = useState(0);
 
   // Add function to get user data from SecureStore
   const getUserData = async () => {
@@ -37,12 +39,42 @@ const BottomNav = ({ navigation, activeRoute }) => {
 
   useEffect(() => {
     getUserData();
-    dispatch(fetchOrderCount()); // This now uses SQLite
-    const interval = setInterval(() => {
-      dispatch(fetchOrderCount()); // This now uses SQLite
-    }, 5000); // Reduced interval since we're checking local storage
+    const initializeCart = async () => {
+      try {
+        const userData = await SecureStore.getItemAsync('userData');
+        if (userData) {
+          const { firebaseUid } = JSON.parse(userData);
+          await dispatch(fetchOrderCount());
+        }
+      } catch (error) {
+        console.error('Error initializing cart count:', error);
+      }
+    };
+
+    initializeCart();
+    const interval = setInterval(initializeCart, 5000);
     return () => clearInterval(interval);
   }, [dispatch]);
+
+  // Add this effect to fetch notification count
+  useEffect(() => {
+    const fetchNotificationCount = async () => {
+      try {
+        const userData = await SecureStore.getItemAsync('userData');
+        if (userData) {
+          const { firebaseUid } = JSON.parse(userData);
+          const count = await getUnreadCount(firebaseUid);
+          setNotificationCount(count);
+        }
+      } catch (error) {
+        console.error('Error fetching notification count:', error);
+      }
+    };
+
+    fetchNotificationCount();
+    const interval = setInterval(fetchNotificationCount, 5000); // Check every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -65,11 +97,20 @@ const BottomNav = ({ navigation, activeRoute }) => {
         onPress={() => navigation.navigate('Notifications')}
       >
         <View style={styles.tabContent}>
-          <Ionicons
-            name={activeRoute === 'Notifications' ? 'notifications' : 'notifications-outline'}
-            size={24}
-            color={activeRoute === 'Notifications' ? '#ff9900' : '#666'}
-          />
+          <View style={styles.iconContainer}>
+            <Ionicons
+              name={activeRoute === 'Notifications' ? 'notifications' : 'notifications-outline'}
+              size={24}
+              color={activeRoute === 'Notifications' ? '#ff9900' : '#666'}
+            />
+            {notificationCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {notificationCount > 99 ? '99+' : notificationCount}
+                </Text>
+              </View>
+            )}
+          </View>
           <Text style={[
             styles.tabLabel,
             activeRoute === 'Notifications' && styles.activeTabLabel

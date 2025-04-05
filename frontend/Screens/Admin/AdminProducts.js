@@ -27,6 +27,7 @@ import {
 import { PRODUCT_CREATE_RESET, PRODUCT_UPDATE_RESET } from '../../Redux/Constants/productConstants';
 import { debounce } from 'lodash';
 import { SCREEN_WIDTH } from '../../utils/dimensions';
+import { sendProductDiscountNotification } from '../../utils/notifications';
 
 const AdminProducts = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -186,12 +187,49 @@ const AdminProducts = ({ navigation }) => {
       };
 
       if (isEditMode) {
-        await dispatch(updateProduct(productForm._id, productData));
+        // Get the original product to compare discount
+        const originalProduct = products.find(p => p._id === productForm._id);
+        const newDiscount = parseInt(productForm.discount || '0');
+        const hasNewDiscount = originalProduct && 
+                            newDiscount > 0 && 
+                            newDiscount !== originalProduct.discount;
+
+        console.log('Discount comparison:', {
+          originalDiscount: originalProduct?.discount,
+          newDiscount,
+          hasNewDiscount
+        });
+
+        // Update the product
+        const updatedProduct = await dispatch(updateProduct(productForm._id, productData));
+        
+        // Send notification if there's a new discount
+        if (hasNewDiscount && updatedProduct) {
+          console.log('Sending discount notification for:', updatedProduct.name);
+          try {
+            await sendProductDiscountNotification({
+              _id: updatedProduct._id,
+              name: updatedProduct.name,
+              images: updatedProduct.images || [],
+              price: updatedProduct.price,
+              discountedPrice: updatedProduct.discountedPrice,
+              discount: updatedProduct.discount
+            });
+            console.log('Discount notification sent successfully');
+          } catch (notificationError) {
+            console.error('Error sending discount notification:', notificationError);
+          }
+        }
       } else {
         await dispatch(createProduct(productData));
       }
+
+      setIsModalVisible(false);
+      resetForm();
+      await dispatch(listProducts());
     } catch (err) {
       Alert.alert('Error', err.message || 'Something went wrong');
+    } finally {
       setIsSubmitting(false);
     }
   };

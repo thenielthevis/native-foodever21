@@ -34,9 +34,9 @@ const rootReducer = combineReducers({
 
 // Custom middleware for logging
 const logger = store => next => action => {
-    console.log('📦 Dispatching:', action.type);
+    // console.log('📦 Dispatching:', action.type);
     const result = next(action);
-    console.log('🔄 Updated State:', store.getState());
+    // console.log('🔄 Updated State:', store.getState());
     return result;
 };
 

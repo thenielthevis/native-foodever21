@@ -21,7 +21,7 @@ import { useDispatch, useSelector } from 'react-redux'; // Add this
 import * as SecureStore from 'expo-secure-store';
 import { SET_CART_COUNT } from '../../Redux/Constants/cartConstants';
 import { clearCartData } from '../../Redux/Actions/cartActions';
-
+import TokenExpired from '../Modals/TokenExpired';
 
 // Color palette
 const COLORS = {
@@ -43,6 +43,7 @@ const UserProfile = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [backendUser, setBackendUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showTokenExpiredModal, setShowTokenExpiredModal] = useState(false);
   const dispatch = useDispatch();
 
 
@@ -77,11 +78,15 @@ const UserProfile = ({ navigation }) => {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch user data:", error);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Signin' }],
-      });
+      console.log('Error type:', error?.response?.status);
+      if (error?.response?.status === 401) {
+        setShowTokenExpiredModal(true);
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Signin' }],
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -131,6 +136,18 @@ const UserProfile = ({ navigation }) => {
     });
   };
 
+  const handleTokenExpiredClose = () => {
+    setShowTokenExpiredModal(false);
+  };
+
+  const handleTokenExpiredLogin = () => {
+    setShowTokenExpiredModal(false);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Signin' }],
+    });
+  };
+
 
   if (loading) {
     return (
@@ -169,6 +186,11 @@ const UserProfile = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="white" barStyle="dark-content" />
+      <TokenExpired
+        visible={showTokenExpiredModal}
+        onClose={handleTokenExpiredClose}
+        onLogin={handleTokenExpiredLogin}
+      />
       <LinearGradient
         colors={[COLORS.primary, COLORS.secondary, COLORS.background]}
         style={[styles.gradientBackground, { paddingTop: insets.top }]}

@@ -70,10 +70,8 @@ export const updateOrderStatus = (orderId, status) => async (dispatch) => {
     const token = await SecureStore.getItemAsync("jwt");
     if (!token) throw new Error('No authentication token found');
 
-
-    // First check if the order is eligible for status update
     const response = await axios.put(
-      `${API_URL}/orders/statuses/${orderId}`,
+      `${API_URL}/admin/orders/${orderId}/status`,
       { status },
       {
         headers: {
@@ -83,36 +81,48 @@ export const updateOrderStatus = (orderId, status) => async (dispatch) => {
       }
     );
 
+    // The response now contains the complete order data
+    const updatedOrder = response.data.order;
+    console.log('Updated order data:', updatedOrder);
 
     dispatch({
       type: UPDATE_ORDER_STATUS_SUCCESS,
-      payload: response.data
+      payload: updatedOrder
     });
    
-    // Refresh order list after status update
     dispatch(getAllOrders());
-   
-    return response.data;
+    
+    return updatedOrder;
   } catch (error) {
-    console.error('Error updating order status:', error);
-   
-    // Check if error is specifically about immutable status
-    if (error.response?.data?.message?.includes('Cannot update status')) {
-      Alert.alert(
-        'Status Update Failed',
-        `This order is already ${error.response.data.currentStatus} and cannot be modified.`
-      );
-    } else {
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to update order status'
-      );
-    }
-   
+    console.error('Error updating order status:', error.response || error);
     dispatch({
       type: UPDATE_ORDER_STATUS_FAIL,
-      payload: error.response?.data?.message || error.message
+      payload: error.response?.data?.message || 'Failed to update order status'
     });
+    throw error;
+  }
+};
+
+
+// Action to fetch a specific order by ID (admin only)
+export const getOrderById = (orderId) => async (dispatch) => {
+  try {
+    const token = await SecureStore.getItemAsync("jwt");
+    if (!token) throw new Error('No authentication token found');
+
+    const response = await axios.get(
+      `${API_URL}/admin/orders/${orderId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching order details:', error);
     throw error;
   }
 };

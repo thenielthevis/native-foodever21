@@ -17,17 +17,28 @@ import { initDatabase, saveCartItem, getCartItems, clearCartItems, getCartTotalC
 
 export const addToCart = (product, quantity) => async (dispatch) => {
   try {
-    dispatch({ type: SET_CART_LOADING, payload: true });
-
-    await initDatabase();
-    await saveCartItem(product, quantity);
+    const userData = await SecureStore.getItemAsync('userData');
+    if (!userData) throw new Error('User not authenticated');
     
-    // Get updated cart items
-    const cartItems = await getCartItems();
+    const { firebaseUid } = JSON.parse(userData);
+    await initDatabase();
+    await saveCartItem(firebaseUid, product, quantity);
+    
+    // Immediately get and update cart count
+    const newCount = await getCartTotalCount(firebaseUid);
+    console.log('New cart count after add:', newCount);
+    
+    dispatch({ 
+      type: 'UPDATE_CART_COUNT',
+      payload: newCount
+    });
+
+    // Also update cart items list
+    const cartItems = await getCartItems(firebaseUid);
     dispatch({
       type: GET_ORDER_LIST_SUCCESS,
       payload: cartItems.map(item => ({
-        order_id: item.id.toString(),
+        order_id: `order_${item.product_id}`,
         product: {
           id: item.product_id,
           name: item.product_name,
@@ -37,18 +48,11 @@ export const addToCart = (product, quantity) => async (dispatch) => {
         quantity: item.quantity
       }))
     });
-
-    // Update cart count
-    const count = await getCartTotalCount();
-    dispatch({ type: SET_CART_COUNT, payload: count });
-
+    
     return { success: true };
   } catch (error) {
     console.error('Add to cart error:', error);
-    dispatch({ type: SET_CART_ERROR, payload: error.message });
     return { success: false, error: error.message };
-  } finally {
-    dispatch({ type: SET_CART_LOADING, payload: false });
   }
 };
 
@@ -56,13 +60,16 @@ export const updateCartQuantity = (orderId, quantity) => async (dispatch) => {
   try {
     dispatch({ type: SET_CART_LOADING, payload: true });
     
-    await initDatabase();
-    // Convert orderId back to product_id
-    const productId = orderId.split('_')[1] || orderId;
-    await updateCartItemQuantity(productId, quantity);
+    const userData = await SecureStore.getItemAsync('userData');
+    if (!userData) throw new Error('User not authenticated');
+    const { firebaseUid } = JSON.parse(userData);
     
-    // Get updated cart items
-    const cartItems = await getCartItems();
+    await initDatabase();
+    const productId = orderId.split('_')[1] || orderId;
+    await updateCartItemQuantity(firebaseUid, productId, quantity);
+    
+    // Fetch updated items with user ID
+    const cartItems = await getCartItems(firebaseUid);
     dispatch({
       type: GET_ORDER_LIST_SUCCESS,
       payload: cartItems.map(item => ({
@@ -77,10 +84,9 @@ export const updateCartQuantity = (orderId, quantity) => async (dispatch) => {
       }))
     });
 
-    // Update cart count
-    const count = await getCartTotalCount();
+    // Update cart count with user ID
+    const count = await getCartTotalCount(firebaseUid);
     dispatch({ type: SET_CART_COUNT, payload: count });
-
   } catch (error) {
     console.error('Error updating quantity:', error);
     dispatch({
@@ -94,34 +100,45 @@ export const updateCartQuantity = (orderId, quantity) => async (dispatch) => {
 
 export const fetchCartCount = () => async (dispatch) => {
   try {
+    const userData = await SecureStore.getItemAsync('userData');
+    if (!userData) return;
+    
+    const { firebaseUid } = JSON.parse(userData);
     await initDatabase();
-    const count = await getCartTotalCount();
-    dispatch({ type: SET_CART_COUNT, payload: count || 0 });
+    const count = await getCartTotalCount(firebaseUid);
+    
+    dispatch({ 
+      type: SET_CART_COUNT, 
+      payload: count || 0 
+    });
   } catch (error) {
     console.error('Failed to fetch cart count:', error);
     dispatch({ type: SET_CART_COUNT, payload: 0 });
   }
 };
 
-export const initializeCartCount = () => async (dispatch) => {
-  try {
-    await initDatabase();
-    const count = await getCartTotalCount();
-    dispatch({ type: SET_CART_COUNT, payload: count || 0 });
-  } catch (error) {
-    console.error('Failed to initialize cart count:', error);
-    dispatch({ type: SET_CART_COUNT, payload: 0 });
-  }
-};
-
 export const fetchOrderCount = () => async (dispatch) => {
   try {
+    const userData = await SecureStore.getItemAsync('userData');
+    if (!userData) return;
+    
+    const { firebaseUid } = JSON.parse(userData);
+    
+    // Make sure to await database initialization
     await initDatabase();
-    const count = await getCartTotalCount();
-    dispatch({ type: SET_ORDER_COUNT, payload: count || 0 });
+    const count = await getCartTotalCount(firebaseUid);
+    // console.log('Current cart count:', count);
+    
+    dispatch({
+      type: 'UPDATE_CART_COUNT',
+      payload: count
+    });
   } catch (error) {
-    console.error('Failed to fetch order count:', error);
-    dispatch({ type: SET_ORDER_COUNT, payload: 0 });
+    console.error('Error fetching cart count:', error);
+    dispatch({
+      type: 'UPDATE_CART_COUNT',
+      payload: 0
+    });
   }
 };
 
@@ -129,13 +146,19 @@ export const getUserOrderList = () => async (dispatch) => {
   try {
     dispatch({ type: GET_ORDER_LIST_REQUEST });
     
+    const userData = await SecureStore.getItemAsync('userData');
+    if (!userData) {
+      throw new Error('User not authenticated');
+    }
+    const { firebaseUid } = JSON.parse(userData);
+    
     await initDatabase();
-    const cartItems = await getCartItems();
+    const cartItems = await getCartItems(firebaseUid);
     
     dispatch({
       type: GET_ORDER_LIST_SUCCESS,
       payload: cartItems.map(item => ({
-        order_id: `order_${item.product_id}`, // Consistent ID format
+        order_id: `order_${item.product_id}`,
         product: {
           id: item.product_id,
           name: item.product_name,
@@ -167,23 +190,22 @@ export const removeFromCart = (orderId) => async (dispatch) => {
   try {
     dispatch({ type: SET_CART_LOADING, payload: true });
     
+    const userData = await SecureStore.getItemAsync('userData');
+    if (!userData) throw new Error('User not authenticated');
+    const { firebaseUid } = JSON.parse(userData);
+    
     await initDatabase();
-    // Convert orderId back to product_id since we stored it that way in SQLite
-    const productId = orderId.split('_')[1] || orderId; // Handle both formats
-    await deleteCartItem(productId);
+    const productId = orderId.split('_')[1] || orderId;
+    await deleteCartItem(firebaseUid, productId);
 
-    // Remove from Redux state
-    dispatch({
-      type: REMOVE_FROM_CART,
-      payload: orderId
-    });
+    dispatch({ type: REMOVE_FROM_CART, payload: orderId });
 
-    // Get updated cart items
-    const cartItems = await getCartItems();
+    // Fetch updated items with user ID
+    const cartItems = await getCartItems(firebaseUid);
     dispatch({
       type: GET_ORDER_LIST_SUCCESS,
       payload: cartItems.map(item => ({
-        order_id: `order_${item.product_id}`, // Consistent ID format
+        order_id: `order_${item.product_id}`,
         product: {
           id: item.product_id,
           name: item.product_name,
@@ -194,10 +216,9 @@ export const removeFromCart = (orderId) => async (dispatch) => {
       }))
     });
 
-    // Update cart count
-    const count = await getCartTotalCount();
+    // Update cart count with user ID
+    const count = await getCartTotalCount(firebaseUid);
     dispatch({ type: SET_CART_COUNT, payload: count });
-
   } catch (error) {
     console.error('Error removing item:', error);
     dispatch({
@@ -213,15 +234,19 @@ export const clearSelectedItems = (selectedOrders) => async (dispatch) => {
   try {
     dispatch({ type: SET_CART_LOADING, payload: true });
     
+    const userData = await SecureStore.getItemAsync('userData');
+    if (!userData) throw new Error('User not authenticated');
+    const { firebaseUid } = JSON.parse(userData);
+    
     await initDatabase();
     
     // Delete each selected item from SQLite
     for (const order of selectedOrders) {
-      await deleteCartItem(order.product.id);
+      await deleteCartItem(firebaseUid, order.product.id);
     }
     
-    // Refresh cart items
-    const cartItems = await getCartItems();
+    // Refresh cart items with user ID
+    const cartItems = await getCartItems(firebaseUid);
     dispatch({
       type: GET_ORDER_LIST_SUCCESS,
       payload: cartItems.map(item => ({
@@ -237,7 +262,7 @@ export const clearSelectedItems = (selectedOrders) => async (dispatch) => {
     });
 
     // Update cart count
-    const count = await getCartTotalCount();
+    const count = await getCartTotalCount(firebaseUid);
     dispatch({ type: SET_CART_COUNT, payload: count });
 
   } catch (error) {

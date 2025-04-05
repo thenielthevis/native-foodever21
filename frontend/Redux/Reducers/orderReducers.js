@@ -36,24 +36,24 @@ const initialState = {
 
 export const orderReducer = (state = initialState, action) => {
   try {
-    console.log('orderReducer - Received action:', action);
+    // console.log('orderReducer - Received action:', action);
    
     if (!action?.type) {
-      console.error('orderReducer - Invalid action:', action);
+      // console.error('orderReducer - Invalid action:', action);
       return state;
     }
 
 
     // Explicitly filter out PRODUCT actions to prevent handling them
     if (action.type.startsWith('PRODUCT_')) {
-      console.log('orderReducer - Ignoring product action:', action.type);
+      // console.log('orderReducer - Ignoring product action:', action.type);
       return state;
     }
 
 
     switch (action.type) {
       case GET_ALL_ORDERS_REQUEST:
-        console.log('orderReducer - GET_ALL_ORDERS_REQUEST');
+        // console.log('orderReducer - GET_ALL_ORDERS_REQUEST');
         return {
           ...state,
           adminOrdersLoading: true,

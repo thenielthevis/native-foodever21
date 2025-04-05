@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { getUserOrderList, removeFromCart, fetchOrderCount, updateCartQuantity } from '../../Redux/Actions/cartActions';
+import { getUserOrderList, removeFromCart, fetchOrderCount, updateCartQuantity, clearSelectedItems } from '../../Redux/Actions/cartActions';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { API_URL } from '@env';
@@ -33,43 +33,37 @@ const CartScreen = () => {
       try {
         setIsInitializing(true);
         
-        // Initialize SQLite and load cached data
-        try {
-          await initDatabase();
-          console.log('Database initialized');
-          
-          // Load cached items directly without user ID
-          const cachedItems = await getCartItems();
-          console.log('Cached items:', cachedItems);
-          
-          if (cachedItems && cachedItems.length > 0) {
-            dispatch({
-              type: 'GET_ORDER_LIST_SUCCESS',
-              payload: cachedItems.map(item => ({
-                order_id: item.id.toString(),
-                product: {
-                  id: item.product_id,
-                  name: item.product_name,
-                  price: item.product_price,
-                  image: item.product_image
-                },
-                quantity: item.quantity
-              }))
-            });
-          }
-        } catch (dbError) {
-          console.error('Database error:', dbError);
+        // Initialize SQLite
+        await initDatabase();
+        console.log('Database initialized');
+        
+        const userData = await SecureStore.getItemAsync('userData');
+        if (!userData) {
+          console.log('No user data found');
+          return;
         }
-
-        // Try to sync with server if user is logged in
-        const token = await SecureStore.getItemAsync("jwt");
-        if (token) {
-          await Promise.all([
-            dispatch(getUserOrderList()),
-            dispatch(fetchOrderCount())
-          ]);
+        
+        const { firebaseUid } = JSON.parse(userData);
+        
+        // Load cached items for specific user
+        const cachedItems = await getCartItems(firebaseUid);
+        console.log('Cached items:', cachedItems);
+        
+        if (cachedItems && cachedItems.length > 0) {
+          dispatch({
+            type: 'GET_ORDER_LIST_SUCCESS',
+            payload: cachedItems.map(item => ({
+              order_id: item.id.toString(),
+              product: {
+                id: item.product_id,
+                name: item.product_name,
+                price: item.product_price,
+                image: item.product_image
+              },
+              quantity: item.quantity
+            }))
+          });
         }
-
       } catch (error) {
         console.error('Error initializing cart:', error);
       } finally {
@@ -79,6 +73,24 @@ const CartScreen = () => {
     
     initCart();
   }, [dispatch]);
+
+  useEffect(() => {
+    const loadCart = async () => {
+      try {
+        setIsInitializing(true);
+        await dispatch(getUserOrderList());
+        await dispatch(fetchOrderCount());
+      } catch (error) {
+        console.error('Error loading cart:', error);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    loadCart();
+    const unsubscribe = navigation.addListener('focus', loadCart);
+    return unsubscribe;
+  }, [dispatch, navigation]);
 
   const handleQuantityUpdate = async (orderId, newQuantity) => {
     if (newQuantity <= 0) {
@@ -139,7 +151,7 @@ const CartScreen = () => {
     );
   };
 
-  const handleOrderNow = () => {
+  const handleOrderNow = async () => {
     try {
       const selectedOrderIds = Object.keys(selectedItems).filter(orderId => selectedItems[orderId]);
       
@@ -156,6 +168,12 @@ const CartScreen = () => {
         type: 'SET_SELECTED_ORDERS',
         payload: selectedOrders
       });
+
+      // Clear selected items from cart
+      await dispatch(clearSelectedItems(selectedOrders));
+
+      // Reset selection state
+      setSelectedItems({});
 
       // Navigate to confirmation screen
       navigation.navigate('Confirm');

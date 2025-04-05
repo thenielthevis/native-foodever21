@@ -12,6 +12,7 @@ import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '@env';
 import { SCREEN_WIDTH } from '../../utils/dimensions';
 import { createSelector } from 'reselect';
+import TokenExpired from '../Modals/TokenExpired';
 
 const DashboardCard = React.memo(({ title, count, icon, color, onPress, isLoading, index }) => {
   return (
@@ -82,6 +83,7 @@ const AdminHome = ({ navigation }) => {
   const [yearlyData, setYearlyData] = useState(null);
   const [dailyData, setDailyData] = useState(null);
   const [chartData, setChartData] = useState(null);
+  const [showTokenExpiredModal, setShowTokenExpiredModal] = useState(false);
 
   // Use memoized selectors
   const adminOrders = useSelector(selectAdminOrders);
@@ -166,6 +168,12 @@ const AdminHome = ({ navigation }) => {
     const loadData = async () => {
       try {
         setIsLoading(true);
+        const isTokenValid = await checkToken();
+      
+        if (!isTokenValid) {
+          return;
+        }
+
         await Promise.all([
           fetchUsers(),
           dispatch(getAllOrders()),
@@ -173,6 +181,9 @@ const AdminHome = ({ navigation }) => {
         ]);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+        if (error?.response?.status === 401) {
+          setShowTokenExpiredModal(true);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -223,6 +234,48 @@ const AdminHome = ({ navigation }) => {
     }
   };
 
+  // Add this function to check token
+  const checkToken = async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        setShowTokenExpiredModal(true);
+        return false;
+      }
+      
+      // Verify token with a backend call
+      const response = await axios.get(`${API_URL}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      return true;
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        setShowTokenExpiredModal(true);
+        return false;
+      }
+      console.error('Error checking token:', error);
+      return false;
+    }
+  };
+
+  // Add handler functions for the TokenExpired modal
+  const handleTokenExpiredClose = () => {
+    setShowTokenExpiredModal(false);
+  };
+
+  const handleTokenExpiredLogin = () => {
+    setShowTokenExpiredModal(false);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Signin' }],
+    });
+  };
+
   const navigateToOrders = () => {
     console.log('Navigating to AdminOrders screen');
     navigation.navigate('AdminOrders');
@@ -245,19 +298,18 @@ const AdminHome = ({ navigation }) => {
     navigation.navigate('AdminProducts');
   };
 
-  // Calculate recent orders - add this after other useMemo calculations
+  // Update the recentOrders calculation with proper null checks
   const recentOrders = useMemo(() => {
-    if (!adminOrders) return [];
+    if (!adminOrders || !Array.isArray(adminOrders)) return [];
+    
     return [...adminOrders]
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 5)
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+      .slice(0, 3) // Show only top 3
       .map(order => ({
-        id: order._id,
-        orderNumber: order.orderNumber || `ORD-${order._id.slice(-4)}`,
-        customer: order.user?.name || 'Anonymous',
-        amount: order.amount || 0,
-        status: order.status || 'Pending',
-        date: order.date
+        id: order._id || order.id || Math.random().toString(),
+        orderNumber: `ORDER-${(order._id || order.id).toString().slice(-4)}`,
+        customer: order.user?.name || order.customer || 'Anonymous',
+        amount: order.amount || 0
       }));
   }, [adminOrders]);
 
@@ -365,120 +417,118 @@ const AdminHome = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Admin Dashboard</Text>
-        <Text style={styles.subtitle}>Welcome back, Admin!</Text>
-      </View>
-     
-      <View style={styles.cardsContainer}>
-        {dashboardCards.map((card, index) => (
-          <DashboardCard 
-            {...card} 
-            key={`card-${card.id}-${index}`}
-            index={index}
-          />
-        ))}
-      </View>
-     
-      {/* Quick Actions Section */}
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickActionsContainer}>
-          {quickActions.map((action, index) => (
-            <TouchableOpacity
-              key={`action-${action.id}-${index}`}
-              style={styles.actionButton}
-              onPress={action.onPress}
-            >
-              <View style={[styles.actionIcon, {backgroundColor: action.bgColor}]}>
-                <Ionicons name={action.icon} size={24} color={action.color} />
-              </View>
-              <Text style={styles.actionText}>{action.text}</Text>
-            </TouchableOpacity>
+    <>
+      <TokenExpired
+        visible={showTokenExpiredModal}
+        onClose={handleTokenExpiredClose}
+        onLogin={handleTokenExpiredLogin}
+      />
+      <ScrollView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Admin Dashboard</Text>
+          <Text style={styles.subtitle}>Welcome back, Admin!</Text>
+        </View>
+       
+        <View style={styles.cardsContainer}>
+          {dashboardCards.map((card, index) => (
+            <DashboardCard 
+              {...card} 
+              key={`card-${card.id}-${index}`}
+              index={index}
+            />
           ))}
         </View>
-      </View>
-     
-      {/* Comment out the Revenue Chart Section temporarily */}
-      {/*
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>Monthly Revenue</Text>
-        {(adminOrdersLoading || isLoading || !chartData) ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#9C27B0" />
-            <Text style={styles.loadingText}>Loading chart data...</Text>
-          </View>
-        ) : chartData.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No chart data available</Text>
-          </View>
-        ) : (
-          <View style={styles.chartContainer}>
-            <BarChart {...chartConfig} />
-          </View>
-        )}
-      </View>
-      */}
-
-      {/* Rest of the components (Recent Orders, Product Status) */}
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>Recent Orders</Text>
-        {(adminOrdersLoading || isLoading) ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loadingText}>Loading orders...</Text>
-          </View>
-        ) : recentOrders.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No recent orders found</Text>
-          </View>
-        ) : (
-          <View style={styles.recentOrdersContainer}>
-            {recentOrders.map((order, index) => (
+       
+        {/* Quick Actions Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActionsContainer}>
+            {quickActions.map((action, index) => (
               <TouchableOpacity
-                key={`order-${order.id}-${index}`}
-                style={[
-                  styles.orderItem,
-                  index === recentOrders.length - 1 && { borderBottomWidth: 0 }
-                ]}
-                onPress={() => navigateToOrders()}
+                key={`action-${action.id}-${index}`}
+                style={styles.actionButton}
+                onPress={action.onPress}
               >
-                <View style={styles.orderInfo}>
-                  <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
-                  <Text style={styles.orderCustomer}>{order.customer}</Text>
+                <View style={[styles.actionIcon, {backgroundColor: action.bgColor}]}>
+                  <Ionicons name={action.icon} size={24} color={action.color} />
                 </View>
-                <View style={styles.orderStatus}>
-                  <Text style={styles.orderAmount}>₱{order.amount.toFixed(2)}</Text>
-                  <View style={[
-                    styles.statusBadge,
-                    order.status.toLowerCase() === 'shipping' && styles.pendingBadge,
-                    order.status.toLowerCase() === 'cancelled' && styles.cancelledBadge
-                  ]}>
-                    <Text style={styles.statusText}>{order.status}</Text>
-                  </View>
-                </View>
+                <Text style={styles.actionText}>{action.text}</Text>
               </TouchableOpacity>
             ))}
           </View>
-        )}
-      </View>
-
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>Product Status</Text>
-        <View style={styles.statsContainer}>
-          {productStats.map((stat, index) => (
-            <View 
-              key={`stat-${stat.id}-${index}`}
-              style={styles.statBox}
-            >
-              <Text style={styles.statNumber}>{stat.number}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
         </View>
-      </View>
-    </ScrollView>
+       
+        {/* Comment out the Revenue Chart Section temporarily */}
+        {/*
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Monthly Revenue</Text>
+          {(adminOrdersLoading || isLoading || !chartData) ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#9C27B0" />
+              <Text style={styles.loadingText}>Loading chart data...</Text>
+            </View>
+          ) : chartData.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No chart data available</Text>
+            </View>
+          ) : (
+            <View style={styles.chartContainer}>
+              <BarChart {...chartConfig} />
+            </View>
+          )}
+        </View>
+        */}
+
+        {/* Rest of the components (Recent Orders, Product Status) */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>3 Most Recent Orders</Text>
+          {(adminOrdersLoading || isLoading) ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#2196F3" />
+              <Text style={styles.loadingText}>Loading orders...</Text>
+            </View>
+          ) : recentOrders.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No recent orders found</Text>
+            </View>
+          ) : (
+            <View style={styles.recentOrdersContainer}>
+              {recentOrders.map((order, index) => (
+                <TouchableOpacity
+                  key={`home-recent-${order.id}-${index}-${Date.now()}`}
+                  style={[
+                    styles.orderItem,
+                    index === recentOrders.length - 1 && { borderBottomWidth: 0 }
+                  ]}
+                  onPress={() => navigateToOrders()}
+                >
+                  <View style={styles.orderInfo}>
+                    <Text style={styles.orderNumber}>{order.orderNumber}</Text>
+                    <Text style={styles.orderCustomer}>{order.customer}</Text>
+                  </View>
+                  <Text style={styles.orderAmount}>₱{order.amount.toFixed(2)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Product Status</Text>
+          <View style={styles.statsContainer}>
+            {productStats.map((stat, index) => (
+              <View 
+                key={`stat-${stat.id}-${index}`}
+                style={styles.statBox}
+              >
+                <Text style={styles.statNumber}>{stat.number}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </>
   );
 };
 

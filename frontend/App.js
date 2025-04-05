@@ -21,6 +21,8 @@ import AdminOrders from './Screens/Admin/AdminOrders';  // Add this import
 import AdminUsers from './Screens/Admin/AdminUsers';  // Add this import
 import AdminRevenue from './Screens/Admin/AdminRevenue';  // Add this import
 import AdminProducts from './Screens/Admin/AdminProducts';  // Add this import
+import NotificationsScreen from './Screens/Notifications/NotificationsScreen'; // Add this import
+import NotificationDetails from './Screens/Notifications/NotificationDetails';
 
 // Add these imports for push notifications
 import { useState, useEffect, useRef } from 'react';
@@ -29,12 +31,22 @@ import { auth } from './firebaseConfig';
 // Import DrawerNavigator
 import DrawerNavigator from './Navigators/DrawerNavigator';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Notifications from 'expo-notifications';
+import { initNotificationsDB } from './services/notificationsDB';
 
 const Stack = createNativeStackNavigator();
 
+// Configure notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
 export default function App() {
   const navigationRef = useRef(null);
-  // Add state for notifications
   const [notification, setNotification] = useState(null);
 
   // Setup push notifications
@@ -64,6 +76,57 @@ export default function App() {
       unsubscribeAuth();
       notificationCleanup();
     };
+  }, []);
+
+  useEffect(() => {
+    const setupApp = async () => {
+      await initNotificationsDB();
+
+      const subscription = Notifications.addNotificationResponseReceivedListener(async response => {
+        console.log('Notification response:', response);
+        
+        const { notification } = response;
+        const notificationData = notification.request.content.data;
+        console.log('Notification data:', notificationData);
+
+        // Create a properly structured notification object
+        const notificationObj = {
+          id: null,
+          title: notification.request.content.title,
+          body: notification.request.content.body,
+          data: notificationData,
+          created_at: notification.date
+        };
+
+        if (notificationData.type === 'PRODUCT_DISCOUNT') {
+          console.log('Navigating to product notification:', notificationObj);
+          navigationRef.current?.navigate('NotificationDetails', {
+            notification: {
+              ...notificationObj,
+              data: {
+                ...notificationObj.data,
+                screen: 'NotificationDetails'
+              }
+            }
+          });
+        } else if (notificationData.type === 'ORDER_STATUS_UPDATE') {
+          console.log('Navigating to order notification:', notificationObj);
+          navigationRef.current?.navigate('NotificationDetails', {
+            notification: {
+              ...notificationObj,
+              data: {
+                ...notificationObj.data,
+                screen: 'NotificationDetails'
+              }
+            }
+          });
+        }
+      });
+
+      return () => subscription.remove();
+    };
+
+    setupApp();
   }, []);
   
   return (
@@ -110,6 +173,20 @@ export default function App() {
                 options={{ 
                   headerShown: true,
                   title: 'Payment'
+                }}
+              />
+              <Stack.Screen 
+                name="Notifications" 
+                component={NotificationsScreen}
+                options={{
+                  headerShown: false
+                }}
+              />
+              <Stack.Screen 
+                name="NotificationDetails" 
+                component={NotificationDetails}
+                options={{
+                  headerShown: false
                 }}
               />
             </Stack.Navigator>

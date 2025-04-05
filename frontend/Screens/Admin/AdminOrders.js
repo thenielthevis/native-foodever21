@@ -9,7 +9,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getAllOrders, updateOrderStatus } from '../../Redux/Actions/orderActions';
 import { Picker } from '@react-native-picker/picker';
 import * as SecureStore from 'expo-secure-store';
-
+import { sendOrderStatusNotification } from '../../utils/notifications';
 
 const AdminOrders = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -90,9 +90,9 @@ const AdminOrders = ({ navigation }) => {
  
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed': return '#4CAF50';
-      case 'Shipping': return '#2196F3';
-      case 'Cancelled': return '#F44336';
+      case 'completed': return '#4CAF50';
+      case 'shipping': return '#2196F3';
+      case 'cancelled': return '#F44336';
       default: return '#FFC107';
     }
   };
@@ -101,14 +101,39 @@ const AdminOrders = ({ navigation }) => {
     if (!selectedOrder || !selectedStatus) return;
    
     try {
-      await dispatch(updateOrderStatus(selectedOrder.id, selectedStatus.toLowerCase()));
       setStatusModalVisible(false);
+      setIsRefreshing(true);
+      
+      const updatedOrder = await dispatch(updateOrderStatus(
+        selectedOrder._id || selectedOrder.id, 
+        selectedStatus.toLowerCase()
+      ));
+
+      // Log the complete order data
+      console.log('Updated order data for notification:', updatedOrder);
+      
+      await sendOrderStatusNotification({
+        id: selectedOrder._id || selectedOrder.id,
+        userId: selectedOrder.userId || updatedOrder.userId,
+        orderNumber: selectedOrder.orderNumber,
+        // Ensure complete product data is included
+        products: updatedOrder.products || selectedOrder.products,
+        customer: selectedOrder.customer,
+        amount: selectedOrder.amount,
+        date: selectedOrder.date || selectedOrder.createdAt,
+        paymentMethod: selectedOrder.paymentMethod
+      }, selectedStatus.toLowerCase());
+      
+      await loadOrders();
       Alert.alert('Success', `Order status updated to ${selectedStatus}`);
     } catch (error) {
+      console.error('Error updating status:', error);
       Alert.alert('Error', 'Failed to update order status: ' + error.message);
+    } finally {
+      setIsRefreshing(false);
     }
   };
- 
+
   const openStatusModal = (order) => {
     // Prevent updating completed or cancelled orders
     if (order.status === 'completed' || order.status === 'cancelled') {
@@ -124,17 +149,25 @@ const AdminOrders = ({ navigation }) => {
     setStatusModalVisible(true);
   };
 
-
   const resetFilters = () => {
     setSearchQuery('');
     setFilterStatus('All');
     setShowSearchBar(false);
   };
 
+  const generateUniqueKey = (prefix, id, index) => {
+    return `${prefix}-${id}-${Date.now()}-${index}`;
+  };
 
   const renderOrderItem = ({ item }) => {
+    // Add null check for item
+    if (!item || !item.id) {
+      return null;
+    }
+
     const isExpanded = expandedOrder === item.id;
     const isImmutableStatus = item.status === 'completed' || item.status === 'cancelled';
+    const orderNumber = item.id ? `ORD-${item.id.toString().slice(-4)}` : 'N/A';
    
     return (
       <TouchableOpacity
@@ -143,9 +176,9 @@ const AdminOrders = ({ navigation }) => {
       >
         <View style={styles.orderHeader}>
           <View>
-            <Text style={styles.orderNumber}>{item.orderNumber}</Text>
-            <Text style={styles.customer}>{item.customer}</Text>
-            <Text style={styles.date}>{item.date}</Text>
+            <Text style={styles.orderNumber}>{orderNumber}</Text>
+            <Text style={styles.customer}>{item.customer || 'Unknown'}</Text>
+            <Text style={styles.date}>{item.date || 'No date'}</Text>
           </View>
           <View style={styles.rightHeader}>
             <Text style={styles.amount}>₱{item.amount.toFixed(2)}</Text>
@@ -159,7 +192,7 @@ const AdminOrders = ({ navigation }) => {
           <View style={styles.orderDetails}>
             <Text style={styles.detailsTitle}>Order Items:</Text>
             {item.items && item.items.map((orderItem, index) => (
-              <View key={index} style={styles.orderItemRow}>
+              <View key={`${item.id}-item-${index}`} style={styles.orderItemRow}>
                 <Text style={styles.itemName}>{orderItem.quantity}x {orderItem.name}</Text>
                 <Text style={styles.itemPrice}>₱{(orderItem.price * orderItem.quantity).toFixed(2)}</Text>
               </View>
@@ -200,6 +233,15 @@ const AdminOrders = ({ navigation }) => {
     );
   };
 
+  // Add loading overlay
+  if (adminOrdersLoading && !isRefreshing) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#FF8C00" />
+        <Text style={styles.loadingText}>Updating orders...</Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -298,8 +340,100 @@ const AdminOrders = ({ navigation }) => {
       ) : (
         <FlatList
           data={filteredOrders}
-          keyExtractor={item => item.id}
-          renderItem={renderOrderItem}
+          keyExtractor={(item, index) => generateUniqueKey('list', item.id, index)}
+          renderItem={({ item, index }) => {
+            if (!item || !item.id) return null;
+
+            const isExpanded = expandedOrder === item.id;
+            const isImmutableStatus = item.status === 'completed' || item.status === 'cancelled';
+            const orderNumber = item.orderNumber || `ORD-${item.id.toString().slice(-4)}`;
+            
+            return (
+              <TouchableOpacity
+                style={styles.orderCard}
+                onPress={() => setExpandedOrder(isExpanded ? null : item.id)}
+              >
+                <View style={styles.orderHeader}>
+                  <View>
+                    <Text style={styles.orderNumber}>{orderNumber}</Text>
+                    <Text style={styles.customer}>{item.customer || 'Unknown'}</Text>
+                    <Text style={styles.date}>{item.date || 'No date'}</Text>
+                  </View>
+                  <View style={styles.rightHeader}>
+                    <Text style={styles.amount}>₱{item.amount.toFixed(2)}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+                      <Text style={styles.statusText}>{item.status}</Text>
+                    </View>
+                  </View>
+                </View>
+               
+                {isExpanded && (
+                  <View style={styles.orderDetails}>
+                    <Text style={styles.detailsTitle}>Order Items:</Text>
+                    {item.items && item.items.map((orderItem, itemIndex) => {
+                      // Calculate the effective price (discounted or original)
+                      const effectivePrice = orderItem.discountedPrice !== null && orderItem.discountedPrice !== undefined 
+                        ? orderItem.discountedPrice 
+                        : orderItem.price;
+                      
+                      return (
+                        <View 
+                          key={generateUniqueKey('item', `${item.id}-${orderItem.name}`, itemIndex)}
+                          style={styles.orderItemRow}
+                        >
+                          <View style={styles.itemInfoContainer}>
+                            <Text style={styles.itemName}>
+                              {orderItem.quantity}x {orderItem.name}
+                            </Text>
+                            {orderItem.discountedPrice !== null && orderItem.discountedPrice !== undefined && (
+                              <Text style={styles.originalPrice}>
+                                Original: ₱{orderItem.price.toFixed(2)}
+                              </Text>
+                            )}
+                          </View>
+                          <Text style={styles.itemPrice}>
+                            ₱{(effectivePrice * orderItem.quantity).toFixed(2)}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                    <View style={styles.divider} />
+                    <View style={styles.orderActions}>
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          styles.updateButton,
+                          isImmutableStatus && styles.disabledButton
+                        ]}
+                        onPress={() => openStatusModal(item)}
+                        disabled={isImmutableStatus}
+                      >
+                        <Text style={[
+                          styles.actionButtonText,
+                          isImmutableStatus && styles.disabledButtonText
+                        ]}>
+                          {isImmutableStatus ? 'Status Locked' : 'Update Status'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.actionButton, styles.detailsButton]}
+                      >
+                        <Text style={styles.actionButtonText}>View Details</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+               
+                <View style={styles.expandIconContainer}>
+                  <Ionicons
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color="#666"
+                  />
+                </View>
+              </TouchableOpacity>
+            );
+          }}
           contentContainerStyle={styles.listContainer}
           refreshing={isRefreshing}
           onRefresh={loadOrders}
@@ -356,7 +490,6 @@ const AdminOrders = ({ navigation }) => {
     </SafeAreaView>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -673,7 +806,24 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textDecorationLine: 'underline',
   },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
+  },
+  itemInfoContainer: {
+    flex: 1,
+  },
+  originalPrice: {
+    fontSize: 12,
+    color: '#999',
+    textDecorationLine: 'line-through',
+    marginTop: 2,
+  },
 });
-
 
 export default AdminOrders;

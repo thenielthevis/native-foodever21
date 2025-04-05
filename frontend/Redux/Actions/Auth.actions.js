@@ -112,7 +112,7 @@ export const registerPushNotificationToken = async (token) => {
     console.log('FCM token registered successfully');
     return response.data;
   } catch (error) {
-    console.error('Error registering FCM token:', error);
+    // console.log('Error registering FCM token');
     return {
       error: true,
       message: error.response?.data?.message || error.message || 'Failed to register notification token'
@@ -433,7 +433,7 @@ export const getUserProfile = async () => {
         // Return the complete user object from MongoDB
         return response.data.user;
     } catch (error) {
-        console.error("Error fetching user profile from MongoDB:", error);
+        console.log("Error fetching user profile from MongoDB");
         throw error;
     }
 };

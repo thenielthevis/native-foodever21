@@ -61,6 +61,11 @@ export const cartReducer = (state = initialState, action) => {
         ...state,
         cartCount: action.payload
       }
+    case 'UPDATE_CART_COUNT':
+      return {
+        ...state,
+        cartCount: action.payload
+      }
     case SET_ORDER_COUNT:
     //   console.log('Reducer - Updating orderCount:', action.payload);
       return {
@@ -74,7 +79,9 @@ export const cartReducer = (state = initialState, action) => {
         ...state, 
         loading: false, 
         orderList: action.payload,
-        error: null 
+        error: null,
+        // Update cart count based on orderList
+        cartCount: action.payload.reduce((total, item) => total + item.quantity, 0)
       }
     case GET_ORDER_LIST_FAIL:
       return { ...state, loading: false, error: action.payload }
