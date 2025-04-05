@@ -45,40 +45,49 @@ const UserProfile = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const { dispatch } = useUser();
 
-
   const fetchUserData = async () => {
     setLoading(true);
     try {
       const token = await SecureStore.getItemAsync("jwt");
       const userDataStr = await SecureStore.getItemAsync("userData");
-     
+       
       if (!token || !userDataStr) {
         throw new Error('No authentication data found');
       }
-
-
+  
       const userData = JSON.parse(userDataStr);
-     
+      console.log("Stored user data:", userData);
+       
       // Set basic user info from stored data
+      const photoURL = userData.userImage || userData.photoURL || 'https://via.placeholder.com/150';
       setUser({
         uid: userData.firebaseUid,
         displayName: userData.username,
         email: userData.email,
-        photoURL: 'https://via.placeholder.com/150', // You might want to add a photo URL to your user data
+        photoURL: photoURL,
         createdAt: new Date().toISOString(),
       });
-     
+       
       // Fetch additional data from backend
-      const userProfile = await getUserProfile(token);
-      if (!userProfile.error) {
+      const userProfile = await getUserProfile();
+      console.log("Backend user profile:", userProfile);
+      if (userProfile) {
+        // Update user state if backend has more recent image
+        if (userProfile.userImage) {
+          setUser(prev => ({
+            ...prev,
+            photoURL: userProfile.userImage
+          }));
+        }
         setBackendUser(userProfile);
       }
     } catch (error) {
       console.error("Failed to fetch user data:", error);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Signin' }],
-      });
+      Alert.alert(
+        "Profile Error",
+        "Could not load your profile. Please try logging in again.",
+        [{ text: "OK", onPress: () => navigation.navigate('Signin') }]
+      );
     } finally {
       setLoading(false);
     }
@@ -188,8 +197,19 @@ const UserProfile = ({ navigation }) => {
         >
           <View style={styles.profileCard}>
             <Image
-              source={{ uri: user.photoURL }}
+              source={{ 
+                uri: user.photoURL,
+                headers: { 'Cache-Control': 'no-cache' }  // Add cache control
+              }}
               style={styles.profileImage}
+              onError={(e) => {
+                console.log('Image loading error:', e.nativeEvent.error);
+                // Fallback to default image if loading fails
+                setUser(prev => ({
+                  ...prev,
+                  photoURL: 'https://via.placeholder.com/150'
+                }));
+              }}
             />
             <Text style={styles.displayName}>{user.displayName}</Text>
             <Text style={styles.email}>{user.email}</Text>

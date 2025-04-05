@@ -60,18 +60,69 @@ exports.placeOrder = async (req, res) => {
 // Get user order history
 exports.getUserOrders = async (req, res) => {
   try {
-    const { userId } = req.params;
-
-    const orders = await Order.find({ userId }).sort({ createdAt: -1 }).populate('products.productId', 'name price image');
-
-    if (!orders || orders.length === 0) {
-      return res.status(404).json({ message: 'No orders found for this user.' });
+    console.log('Request headers authorization:', req.headers.authorization?.substring(0, 20) + '...');
+    
+    // Extract Firebase UID - it looks like it's already being extracted properly
+    const firebaseUid = req.user?.uid || req.user?.firebaseUid || req.user?.user_id;
+    
+    console.log('Firebase UID from request:', firebaseUid);
+    
+    if (!firebaseUid) {
+      console.log('No Firebase UID found in request');
+      return res.status(401).json({ 
+        success: false,
+        message: 'Authentication required',
+        orders: [] 
+      });
     }
 
-    res.status(200).json({ message: 'User order history retrieved successfully.', orders });
+    const user = await User.findOne({ firebaseUid });
+    if (!user) {
+      console.log(`No user found in database for Firebase UID: ${firebaseUid}`);
+      return res.status(200).json({ 
+        success: true,
+        message: 'No user found',
+        orders: [] 
+      });
+    }
+
+    console.log(`Found user in database: ${user.username || user.email} (ID: ${user._id})`);
+    
+    // Check if the user has any orders
+    const orderCount = await Order.countDocuments({ userId: user._id });
+    console.log(`User has ${orderCount} orders in database`);
+    
+    const orders = await Order.find({ userId: user._id })
+      .sort({ createdAt: -1 })
+      .populate('products.productId', 'name price image');
+
+    console.log(`Found ${orders.length} orders for user`);
+
+    const formattedOrders = orders.map(order => ({
+      _id: order._id,
+      products: order.products,
+      status: order.status,
+      createdAt: order.createdAt,
+      paymentMethod: order.paymentMethod,
+      orderNumber: `ORD-${order._id.toString().slice(-6)}`,
+      totalPrice: order.products.reduce((total, prod) => {
+        return total + ((prod.productId?.price || 0) * prod.quantity);
+      }, 0)
+    }));
+
+    res.status(200).json({ 
+      success: true,
+      message: orders.length > 0 ? 'Orders retrieved successfully.' : 'No orders found for this user.',
+      orders: formattedOrders
+    });
   } catch (error) {
     console.error('Error fetching user orders:', error);
-    res.status(500).json({ message: 'Failed to fetch user orders.', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching orders',
+      orders: [],
+      error: error.message 
+    });
   }
 };
 

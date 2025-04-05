@@ -3,6 +3,7 @@ const cloudinary = require('cloudinary')
 const { admin, db } = require('../utils/firebaseAdminConfig');
 const serviceAccount = require('../utils/serviceAccountKey.json');
 const User = require('../models/userModel');
+const Order = require('../models/Order'); // Add the Order model import
 const APIFeatures = require('../utils/apiFeatures')
 const mongoose = require('mongoose');
 let Filter;
@@ -14,57 +15,98 @@ let Filter;
 })();
 
 
-//CREATE
-exports.createProduct = async (req, res, next) => {
-    if (!req.files || req.files.length === 0) {
-        return res.status(400).json({
-            success: false,
-            message: 'Please upload product images.'
-        });
-    }
-
-
-    let imagesLinks = [];
-
-
-    for (let i = 0; i < req.files.length; i++) {
-        try {
-            const result = await cloudinary.v2.uploader.upload(req.files[i].path, {
-                folder: 'products',
-            });
-
-
-            imagesLinks.push({
-                public_id: result.public_id,
-                url: result.secure_url
-            });
-        } catch (error) {
-            console.log(error);
-            return res.status(500).json({
-                success: false,
-                message: 'Error uploading images.'
-            });
-        }
-    }
-
-
-    req.body.images = imagesLinks;
-  // req.body.user = req.user.id;
-    const product = await Product.create(req.body);
-
-
-    if (!product) {
-        return res.status(400).json({
-            success: false,
-            message: 'Product not created.'
-        });
-    }
-
-
-    return res.status(201).json({
-        success: true,
-        product
+// Helper function to check if user has ordered a product
+const hasUserOrderedProduct = async (userId, productId) => {
+  try {
+    // Find completed orders containing this product
+    const orders = await Order.find({
+      user: userId,
+      'products.productId': productId,
+      status: 'completed' // Only consider completed orders
     });
+    
+    return orders.length > 0;
+  } catch (error) {
+    console.error('Error checking order history:', error);
+    return false;
+  }
+};
+
+
+//CREATE
+exports.createProductReview = async (req, res) => {
+  try {
+    const { id: productId } = req.params;
+    const { rating, comment } = req.body;
+
+    // Sanitize comment
+    if (!Filter) {
+      return res.status(500).json({ message: 'Bad-words filter not initialized.' });
+    }
+    const sanitizedComment = Filter.clean(comment);
+
+    const token = req.headers.authorization.split(' ')[1];
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const firebaseUid = decodedToken.uid;
+
+    const user = await User.findOne({ firebaseUid });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found.' });
+    }
+
+    // Check if user has ordered this product
+    const hasPurchased = await hasUserOrderedProduct(user._id, productId);
+    if (!hasPurchased) {
+      return res.status(403).json({ 
+        message: 'You can only review products you have purchased.',
+        success: false
+      });
+    }
+
+    const review = {
+      user: user._id,
+      name: user.username || user.name || 'Anonymous User',
+      rating: Number(rating),
+      comment: sanitizedComment,
+      createdAt: new Date(),
+      avatarURL: user.userImage || null,
+      verifiedPurchase: true // Mark as a verified purchase
+    };
+
+    const existingReviewIndex = product.reviews.findIndex(
+      r => r.user.toString() === user._id.toString()
+    );
+
+    if (existingReviewIndex >= 0) {
+      product.reviews[existingReviewIndex] = review;
+    } else {
+      product.reviews.push(review);
+    }
+
+    product.numOfReviews = product.reviews.length;
+    product.ratings = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
+
+    await product.save();
+
+    // Fetch the complete review list with user details
+    const populatedProduct = await Product.findById(productId)
+      .populate('reviews.user', 'username userImage');
+
+    res.status(200).json({
+      success: true,
+      reviews: populatedProduct.reviews,
+      numOfReviews: product.numOfReviews,
+      ratings: product.ratings
+    });
+  } catch (error) {
+    console.error('Error creating review:', error);
+    res.status(500).json({ message: 'Failed to create review.' });
+  }
 };
 
 
@@ -323,78 +365,72 @@ exports.deleteProductsBulks = async (req, res, next) => {
 
 exports.createProductReview = async (req, res) => {
   try {
-    const { id: productId } = req.params; // Match the param name to the route
+    const { id: productId } = req.params;
     const { rating, comment } = req.body;
 
-
-    // Ensure the bad-words filter is initialized
+    // Sanitize comment
     if (!Filter) {
       return res.status(500).json({ message: 'Bad-words filter not initialized.' });
     }
-
-
-    // Sanitize the comment using the initialized filter
     const sanitizedComment = Filter.clean(comment);
 
-
-    // Extract Firebase token and decode it
     const token = req.headers.authorization.split(' ')[1];
     const decodedToken = await admin.auth().verifyIdToken(token);
     const firebaseUid = decodedToken.uid;
 
-
-    // Find the MongoDB user associated with this Firebase UID
     const user = await User.findOne({ firebaseUid });
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-
-    // Find the product by its ID
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ message: 'Product not found.' });
     }
 
-
-    // Check if the user has already reviewed the product
-    const existingReview = product.reviews.find(
-      (review) => review.user.toString() === user._id.toString()
-    );
-
-
-    if (existingReview) {
-      // Update existing review
-      existingReview.rating = rating;
-      existingReview.comment = sanitizedComment; // Save the sanitized comment
-    } else {
-      // Add new review
-      product.reviews.push({
-        user: user._id,
-        name: user.username,
-        rating,
-        comment: sanitizedComment, // Save the sanitized comment
-        createdAt: new Date(),
+    // Check if user has ordered this product
+    const hasPurchased = await hasUserOrderedProduct(user._id, productId);
+    if (!hasPurchased) {
+      return res.status(403).json({ 
+        message: 'You can only review products you have purchased.',
+        success: false
       });
-      product.numOfReviews = product.reviews.length;
     }
 
+    const review = {
+      user: user._id,
+      name: user.username || user.name || 'Anonymous User',
+      rating: Number(rating),
+      comment: sanitizedComment,
+      createdAt: new Date(),
+      avatarURL: user.userImage || null,
+      verifiedPurchase: true // Mark as a verified purchase
+    };
 
-    // Recalculate the product's overall ratings
-    product.ratings =
-      product.reviews.reduce((sum, review) => sum + review.rating, 0) /
-      product.reviews.length;
+    const existingReviewIndex = product.reviews.findIndex(
+      r => r.user.toString() === user._id.toString()
+    );
 
+    if (existingReviewIndex >= 0) {
+      product.reviews[existingReviewIndex] = review;
+    } else {
+      product.reviews.push(review);
+    }
 
-    // Save the product with updated reviews
+    product.numOfReviews = product.reviews.length;
+    product.ratings = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
+
     await product.save();
 
+    // Fetch the complete review list with user details
+    const populatedProduct = await Product.findById(productId)
+      .populate('reviews.user', 'username userImage');
 
     res.status(200).json({
       success: true,
-      reviews: product.reviews,
+      reviews: populatedProduct.reviews,
       numOfReviews: product.numOfReviews,
-      ratings: product.ratings,
+      ratings: product.ratings
     });
   } catch (error) {
     console.error('Error creating review:', error);
@@ -447,9 +483,26 @@ exports.updateProductReview = async (req, res) => {
     }
 
 
-    // Check if the logged-in user is the owner of the review or an admin
-    if (review.user.toString() !== user._id.toString() && localStorage.getItem('role') !== 'admin') {
-      return res.status(403).json({ message: 'You are not authorized to edit this review.' });
+    // Check if the logged-in user is the owner of the review
+    if (review.user.toString() !== user._id.toString()) {
+      const isAdmin = user.role === 'admin'; // Better way to check admin status
+      if (!isAdmin) {
+        return res.status(403).json({ message: 'You are not authorized to edit this review.' });
+      }
+    }
+
+
+    // If it's the user's review, verify they purchased the product (skip for admins)
+    if (review.user.toString() === user._id.toString() && !review.verifiedPurchase) {
+      const hasPurchased = await hasUserOrderedProduct(user._id, productId);
+      if (!hasPurchased) {
+        return res.status(403).json({ 
+          message: 'You can only review products you have purchased.',
+          success: false
+        });
+      }
+      // Mark as verified purchase since we now confirmed it
+      review.verifiedPurchase = true;
     }
 
 
@@ -479,58 +532,77 @@ exports.updateProductReview = async (req, res) => {
   }
 };
  
-  exports.getUserProductReview = async (req, res) => {
-    try {
-      const { productId } = req.params; // Use req.params for productId
-      const authHeader = req.headers.authorization;
- 
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Unauthorized: No token provided.' });
-      }
- 
-      const token = authHeader.split(' ')[1];
-      const decodedToken = await admin.auth().verifyIdToken(token);
-      const firebaseUid = decodedToken.uid;
- 
-      console.log('Product ID:', productId);
- 
-      const user = await User.findOne({ firebaseUid });
-      if (!user) {
-        return res.status(404).json({ message: 'User not found.' });
-      }
- 
-      console.log('MongoDB User ID:', user._id);
- 
-      // Validate the productId
-      if (!mongoose.isValidObjectId(productId)) {
-        console.log('Invalid Product ID format:', productId);
-        return res.status(400).json({ message: 'Invalid Product ID format.' });
-      }
- 
-      // Fetch the product
-      const product = await Product.findById(productId);
-      if (!product) {
-        return res.status(404).json({ message: 'Product not found.' });
-      }
- 
-      // Fetch the user's review
-      const userReview = product.reviews.find(
-        (review) => review.user.toString() === user._id.toString()
-      );
- 
-      if (!userReview) {
-        return res.status(404).json({ message: 'No review found for this product by the user.' });
-      }
- 
-      return res.status(200).json({
-        success: true,
-        review: userReview,
-      });
-    } catch (error) {
-      console.error('Error fetching user review:', error);
-      return res.status(500).json({ message: 'Failed to fetch user review.' });
+exports.getUserProductReview = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided.' });
     }
-  };  
+
+    const token = authHeader.split(' ')[1];
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const firebaseUid = decodedToken.uid;
+
+    console.log(`Checking review for user ${firebaseUid} on product ${productId}`);
+
+    const user = await User.findOne({ firebaseUid });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Validate the productId
+    if (!mongoose.isValidObjectId(productId)) {
+      return res.status(400).json({ message: 'Invalid Product ID format.' });
+    }
+
+    // Fetch the product
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found.' });
+    }
+
+    // Check if user has ordered this product
+    const hasPurchased = await hasUserOrderedProduct(user._id, productId);
+    console.log(`User has purchased product: ${hasPurchased}`);
+
+    // Fetch the user's review
+    const userReview = product.reviews.find(
+      (review) => review.user && review.user.toString() === user._id.toString()
+    );
+
+    if (!userReview) {
+      // If no review found but user has purchased, let them know they can leave a review
+      if (hasPurchased) {
+        console.log('No review yet, but user can review this product');
+        return res.status(200).json({ 
+          message: 'No review yet', 
+          canReview: true,
+          success: true,
+          isNewReview: true
+        });
+      }
+      // If no review and no purchase, let them know they need to purchase first
+      console.log('User cannot review - has not purchased this product');
+      return res.status(403).json({ 
+        message: 'You need to purchase this product before reviewing it.', 
+        canReview: false,
+        success: false
+      });
+    }
+
+    console.log('Found existing review with ID:', userReview._id);
+    return res.status(200).json({
+      success: true,
+      review: userReview,
+      canReview: true
+    });
+  } catch (error) {
+    console.error('Error fetching user review:', error);
+    return res.status(500).json({ message: 'Failed to fetch user review.' });
+  }
+};
  
   exports.getUserAllReviews = async (req, res) => {
     try {
@@ -577,18 +649,15 @@ exports.updateProductReview = async (req, res) => {
 //get reviews
 exports.getProductReviews = async (req, res) => {
   try {
-    const { productId } = req.params; // Fetch productId from the URL params
+    const { productId } = req.params;
 
+    // Populate user details and explicitly include userImage
+    const product = await Product.findById(productId)
+      .populate({
+        path: 'reviews.user',
+        select: 'userImage username name'
+      });
 
-    // Validate the productId
-    if (!mongoose.isValidObjectId(productId)) {
-      console.log('Invalid Product ID format:', productId);
-      return res.status(400).json({ message: 'Invalid Product ID format.' });
-    }
-
-
-    // Fetch the product by ID
-    const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -596,21 +665,22 @@ exports.getProductReviews = async (req, res) => {
       });
     }
 
+    // Transform reviews with proper user details
+    const reviewsWithUserDetails = product.reviews.map(review => {
+      console.log('User data:', review.user); // Debug log
+      return {
+        _id: review._id,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        name: review.user?.name || review.user?.username || 'Anonymous User',
+        avatarURL: review.user?.userImage || null, // Ensure avatarURL is explicitly set
+        username: review.user?.username || 'Anonymous User'
+      };
+    });
 
-    // Fetch the user details for each review
-    const reviewsWithUserDetails = await Promise.all(
-      product.reviews.map(async (review) => {
-        const user = await User.findById(review.user); // Assuming `user` is a reference to the User model
-        return {
-          ...review._doc, // Include review data
-          avatarURL: user?.userImage || '/images/default-avatar.png', // Correctly map userImage to avatarURL
-          username: user?.username || 'Unknown User', // Add username or default
-        };
-      })
-    );
+    console.log('Transformed reviews:', reviewsWithUserDetails); // Debug log
 
-
-    // Return all reviews with user details for the product
     return res.status(200).json({
       success: true,
       reviews: reviewsWithUserDetails,

@@ -2,15 +2,18 @@ import { createStore } from 'redux';
 import { orderReducer } from '../Reducers/orderReducers';
 
 const initialState = {
-  order: {
-    loading: false,
-    error: null,
-    selectedItems: [],
-    paymentMethod: null,
+  loading: false,
+  error: null,
+  selectedItems: [],
+  paymentMethod: null,
+  orders: [],
+  userOrders: {
     orders: [],
-    currentOrder: null,
-    taxRate: 0.12
-  }
+    loading: false,
+    error: null
+  },
+  currentOrder: null,
+  taxRate: 0.12
 };
 
 const orderStore = createStore(orderReducer, initialState);

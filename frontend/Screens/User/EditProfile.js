@@ -80,7 +80,7 @@ const EditProfile = ({ route, navigation }) => {
       const token = await firebaseUser.getIdToken(true);
      
       const uploadResponse = await axios.post(
-        `${API_URL}auth/upload-avatar`,
+        `${API_URL}/auth/upload-avatar`,
         formData,
         {
           headers: {
