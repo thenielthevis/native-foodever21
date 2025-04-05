@@ -9,36 +9,13 @@ import { getUnreadCount } from '../../../services/notificationsDB';
 const BottomNav = ({ navigation, activeRoute }) => {
   const dispatch = useDispatch();
   const cartCount = useSelector(state => state.cart?.cartCount || 0);
-  const [userRole, setUserRole] = useState('user'); // Change to use local state
   const [notificationCount, setNotificationCount] = useState(0);
 
-  // Add function to get user data from SecureStore
-  const getUserData = async () => {
-    try {
-      const userData = await SecureStore.getItemAsync("userData");
-      if (userData) {
-        const parsedData = JSON.parse(userData);
-        console.log('User role from storage:', parsedData.role);
-        setUserRole(parsedData.role || 'user');
-      }
-    } catch (error) {
-      console.error('Error getting user data:', error);
-      setUserRole('user'); // Default to user role if there's an error
-    }
-  };
-
   const handleCartPress = async () => {
-    // const token = await SecureStore.getItemAsync("jwt");
-    // if (!token) {
-    //   navigation.navigate('Signin');
-    //   return;
-    // }
-    // // Navigate directly to CartScreen through the DrawerNavigator
     navigation.navigate('CartScreen');
   };
 
   useEffect(() => {
-    getUserData();
     const initializeCart = async () => {
       try {
         const userData = await SecureStore.getItemAsync('userData');
@@ -56,7 +33,6 @@ const BottomNav = ({ navigation, activeRoute }) => {
     return () => clearInterval(interval);
   }, [dispatch]);
 
-  // Add this effect to fetch notification count
   useEffect(() => {
     const fetchNotificationCount = async () => {
       try {
@@ -72,7 +48,7 @@ const BottomNav = ({ navigation, activeRoute }) => {
     };
 
     fetchNotificationCount();
-    const interval = setInterval(fetchNotificationCount, 5000); // Check every 5 seconds
+    const interval = setInterval(fetchNotificationCount, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -125,7 +101,7 @@ const BottomNav = ({ navigation, activeRoute }) => {
         <View style={styles.tabContent}>
           <View style={styles.iconContainer}>
             <Ionicons
-              name={activeRoute === 'Cart' ? 'cart' : 'cart-outline'}
+              name={activeRoute === 'Cart' ? 'cart' : 'list-outline'}
               size={24}
               color={activeRoute === 'Cart' ? '#ff9900' : '#666'}
             />
@@ -138,7 +114,7 @@ const BottomNav = ({ navigation, activeRoute }) => {
           <Text style={[
             styles.tabLabel,
             activeRoute === 'Cart' && styles.activeTabLabel
-          ]}>Cart</Text>
+          ]}>Orderlist</Text>
         </View>
       </TouchableOpacity>
      
@@ -158,42 +134,6 @@ const BottomNav = ({ navigation, activeRoute }) => {
           ]}>Profile</Text>
         </View>
       </TouchableOpacity>
-     
-      <TouchableOpacity
-        style={styles.tab}
-        onPress={() => navigation.navigate('UserOrdersScreen')}
-      >
-        <View style={styles.tabContent}>
-          <Ionicons
-            name={activeRoute === 'Orders' ? 'list' : 'list-outline'}
-            size={24}
-            color={activeRoute === 'Orders' ? '#ff9900' : '#666'}
-          />
-          <Text style={[
-            styles.tabLabel,
-            activeRoute === 'Orders' && styles.activeTabLabel
-          ]}>Orders</Text>
-        </View>
-      </TouchableOpacity>
-
-      {userRole === 'admin' && (
-        <TouchableOpacity
-          style={styles.tab}
-          onPress={() => navigation.navigate('AdminHome')}
-        >
-          <View style={styles.tabContent}>
-            <Ionicons
-              name={activeRoute === 'AdminHome' ? 'settings' : 'settings-outline'}
-              size={24}
-              color={activeRoute === 'AdminHome' ? '#ff9900' : '#666'}
-            />
-            <Text style={[
-              styles.tabLabel,
-              activeRoute === 'AdminHome' && styles.activeTabLabel
-            ]}>Admin</Text>
-          </View>
-        </TouchableOpacity>
-      )}
     </View>
   );
 };

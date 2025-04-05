@@ -80,8 +80,8 @@ const Search = ({ navigation }) => {
       <View style={styles.priceContainer}>
         {product.discount > 0 ? (
           <>
-            <Text style={styles.originalPrice}>₱{product.price}</Text>
-            <Text style={styles.productPrice}>₱{product.discountedPrice}</Text>
+            <Text style={styles.originalPrice}>₱{product.price.toFixed(2)}</Text>
+            <Text style={styles.productPrice}>₱{product.discountedPrice.toFixed(2)}</Text>
           </>
         ) : (
           <Text style={styles.productPrice}>₱{product.price}</Text>

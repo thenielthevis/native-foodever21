@@ -282,7 +282,7 @@ const CartScreen = () => {
         keyExtractor={item => item.order_id?.toString()}
         ListEmptyComponent={
           <View style={styles.emptyCart}>
-            <Text>No items in cart</Text>
+            <Text>No items in orderlist</Text>
           </View>
         }
       />

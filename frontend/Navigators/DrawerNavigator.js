@@ -9,18 +9,25 @@ import UserProfile from '../Screens/User/UserProfile';
 import CartScreen from '../Screens/Cart/CartScreen';
 import CustomDrawerContent from '../Screens/Shared/StyledComponents/CustomDrawerContent';
 import { COLORS, SHADOWS } from '../constants/theme';
+import UserOrdersScreen from '../Screens/User/UserOrdersScreen';
+import AdminNavigator from './AdminNavigator';
 
 const Drawer = createDrawerNavigator();
 
 const DrawerNavigator = () => {
   const [hasUserData, setHasUserData] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [userRole, setUserRole] = useState('user');
 
   useEffect(() => {
     const checkUserData = async () => {
       try {
         const userData = await SecureStore.getItemAsync('userData');
-        setHasUserData(!!userData);
+        if (userData) {
+          const parsedData = JSON.parse(userData);
+          setHasUserData(true);
+          setUserRole(parsedData.role || 'user');
+        }
       } catch (error) {
         console.log('Error checking user data:', error);
         setHasUserData(false);
@@ -88,24 +95,41 @@ const DrawerNavigator = () => {
         component={CartScreen}
         options={{
           drawerIcon: ({color, size}) => (
-            <Ionicons name="cart-outline" size={size} color={color} />
+            <Ionicons name="list-outline" size={size} color={color} />
           ),
-          drawerLabel: 'My Cart',
-          title: 'My Cart',
+          drawerLabel: 'My Orderlist',
+          title: 'My Orderlist',
           headerShown: true, // Show the header for the CartScreen
         }}
       />
       
-      <Drawer.Screen
-        name="UserOrdersScreen"
-        component={Home}
-        options={{
-          drawerIcon: ({color, size}) => (
-            <MaterialIcons name="history" size={size} color={color} />
-          ),
-          drawerLabel: 'Order History',
-        }}
-      />
+      {hasUserData && (
+        <Drawer.Screen
+          name="UserOrdersScreen"
+          component={UserOrdersScreen}
+          options={{
+            drawerIcon: ({color, size}) => (
+              <MaterialIcons name="history" size={size} color={color} />
+            ),
+            drawerLabel: 'Order History',
+            title: 'Order History',
+          }}
+        />
+      )}
+
+      {userRole === 'admin' && (
+        <Drawer.Screen
+          name="AdminHome"
+          component={AdminNavigator}  // Changed from Home to AdminNavigator
+          options={{
+            drawerIcon: ({color, size}) => (
+              <Ionicons name="settings-outline" size={size} color={color} />
+            ),
+            drawerLabel: 'Admin Dashboard',
+            headerShown: false  // Add this to prevent double headers
+          }}
+        />
+      )}
 
       {!hasUserData && (
         <Drawer.Screen

@@ -18,14 +18,50 @@ let Filter;
 // Helper function to check if user has ordered a product
 const hasUserOrderedProduct = async (userId, productId) => {
   try {
+    console.log('Checking orders with params:', {
+      userId: userId,
+      productId: productId,
+      userIdType: typeof userId,
+      productIdType: typeof productId
+    });
+
+    // Convert string productId to ObjectId if needed
+    const productObjectId = typeof productId === 'string' 
+      ? new mongoose.Types.ObjectId(productId)
+      : productId;
+
     // Find completed orders containing this product
     const orders = await Order.find({
       user: userId,
-      'products.productId': productId,
-      status: 'completed' // Only consider completed orders
+      'products.productId': productObjectId,
+      status: { $in: ['completed', 'delivered'] } // Include both completed and delivered status
     });
-    
-    return orders.length > 0;
+
+    console.log('Order query results:', {
+      userIdUsed: userId,
+      productIdUsed: productObjectId,
+      orderCount: orders.length,
+      orderDetails: orders.map(o => ({
+        id: o._id,
+        status: o.status,
+        products: o.products.map(p => ({
+          productId: p.productId,
+          quantity: p.quantity
+        }))
+      }))
+    });
+
+    const hasOrderedProduct = orders.length > 0;
+    console.log(`Purchase verification result: ${hasOrderedProduct}`);
+
+    // If user is admin, allow review anyway
+    const user = await User.findById(userId);
+    if (user && user.role === 'admin') {
+      console.log('User is admin, allowing review regardless of purchase');
+      return true;
+    }
+
+    return hasOrderedProduct;
   } catch (error) {
     console.error('Error checking order history:', error);
     return false;
@@ -538,44 +574,51 @@ exports.getUserProductReview = async (req, res) => {
       return res.status(404).json({ message: 'Product not found.' });
     }
 
-    // Check if user has ordered this product
+    // Check if user has ordered this product with detailed logging
+    console.log('Checking purchase history for:', {
+      userId: user._id,
+      productId: productId
+    });
+
     const hasPurchased = await hasUserOrderedProduct(user._id, productId);
     console.log(`User has purchased product: ${hasPurchased}`);
 
-    // Fetch the user's review
+    // Find existing review
     const userReview = product.reviews.find(
       (review) => review.user && review.user.toString() === user._id.toString()
     );
 
-    if (!userReview) {
-      // If no review found but user has purchased, let them know they can leave a review
-      if (hasPurchased) {
-        console.log('No review yet, but user can review this product');
-        return res.status(200).json({ 
-          message: 'No review yet', 
-          canReview: true,
+    // Handle the response based on purchase and review status
+    if (hasPurchased) {
+      if (userReview) {
+        return res.status(200).json({
           success: true,
+          review: userReview,
+          canReview: true,
+          isNewReview: false
+        });
+      } else {
+        return res.status(200).json({
+          success: true,
+          message: 'No review yet',
+          canReview: true,
           isNewReview: true
         });
       }
-      // If no review and no purchase, let them know they need to purchase first
-      console.log('User cannot review - has not purchased this product');
-      return res.status(403).json({ 
-        message: 'You need to purchase this product before reviewing it.', 
-        canReview: false,
-        success: false
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'You need to purchase this product before reviewing it.',
+        canReview: false
       });
     }
-
-    console.log('Found existing review with ID:', userReview._id);
-    return res.status(200).json({
-      success: true,
-      review: userReview,
-      canReview: true
-    });
   } catch (error) {
-    console.error('Error fetching user review:', error);
-    return res.status(500).json({ message: 'Failed to fetch user review.' });
+    console.error('Error in getUserProductReview:', error);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch user review.',
+      error: error.message
+    });
   }
 };
  
