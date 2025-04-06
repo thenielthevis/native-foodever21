@@ -63,7 +63,17 @@ const Confirm = ({ navigation }) => {
       if (!userProfile.mobileNumber || !userProfile.address) {
         Alert.alert(
           'Missing Information',
-          'Please update your profile with mobile number and address.'
+          'Please update your profile with mobile number and address.',
+          [
+            {
+              text: 'Update Profile',
+              onPress: () => navigation.navigate('UserProfile')
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            }
+          ]
         );
       }
      
@@ -122,7 +132,7 @@ const Confirm = ({ navigation }) => {
       // First place the order
       await dispatch(placeOrder(orderData));
       
-      // Then clear selected items - note that we're calling dispatch here
+      // Only clear selected items after successful order placement
       await dispatch(clearSelectedItems(selectedOrders));
       
       Alert.alert(

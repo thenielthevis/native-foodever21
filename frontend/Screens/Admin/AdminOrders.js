@@ -11,6 +11,8 @@ import { Picker } from '@react-native-picker/picker';
 import * as SecureStore from 'expo-secure-store';
 import { sendOrderStatusNotification } from '../../utils/notifications';
 
+const SHIPPING_FEE = 50;
+
 const AdminOrders = ({ navigation }) => {
   const dispatch = useDispatch();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -159,6 +161,15 @@ const AdminOrders = ({ navigation }) => {
     return `${prefix}-${id}-${Date.now()}-${index}`;
   };
 
+  const calculateOrderTotal = (order) => {
+    const subtotal = order.products?.reduce((total, item) => {
+      const itemPrice = item.discountedPrice || item.price;
+      return total + (itemPrice * item.quantity);
+    }, 0) || order.amount || 0;
+    
+    return subtotal + SHIPPING_FEE;
+  };
+
   const renderOrderItem = ({ item }) => {
     // Add null check for item
     if (!item || !item.id) {
@@ -168,6 +179,7 @@ const AdminOrders = ({ navigation }) => {
     const isExpanded = expandedOrder === item.id;
     const isImmutableStatus = item.status === 'completed' || item.status === 'cancelled';
     const orderNumber = item.id ? `ORD-${item.id.toString().slice(-4)}` : 'N/A';
+    const totalAmount = calculateOrderTotal(item);
    
     return (
       <TouchableOpacity
@@ -181,7 +193,7 @@ const AdminOrders = ({ navigation }) => {
             <Text style={styles.date}>{item.date || 'No date'}</Text>
           </View>
           <View style={styles.rightHeader}>
-            <Text style={styles.amount}>₱{item.amount.toFixed(2)}</Text>
+            <Text style={styles.amount}>₱{totalAmount.toFixed(2)}</Text>
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
               <Text style={styles.statusText}>{item.status}</Text>
             </View>
@@ -347,6 +359,7 @@ const AdminOrders = ({ navigation }) => {
             const isExpanded = expandedOrder === item.id;
             const isImmutableStatus = item.status === 'completed' || item.status === 'cancelled';
             const orderNumber = item.orderNumber || `ORD-${item.id.toString().slice(-4)}`;
+            const totalAmount = calculateOrderTotal(item); // Now this will work
             
             return (
               <TouchableOpacity
@@ -360,7 +373,7 @@ const AdminOrders = ({ navigation }) => {
                     <Text style={styles.date}>{item.date || 'No date'}</Text>
                   </View>
                   <View style={styles.rightHeader}>
-                    <Text style={styles.amount}>₱{item.amount.toFixed(2)}</Text>
+                    <Text style={styles.amount}>₱{(calculateOrderTotal(item)).toFixed(2)}</Text>
                     <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
                       <Text style={styles.statusText}>{item.status}</Text>
                     </View>
@@ -398,6 +411,17 @@ const AdminOrders = ({ navigation }) => {
                       );
                     })}
                     <View style={styles.divider} />
+                    {/* Add Shipping Fee Display */}
+                    <View style={styles.orderItemRow}>
+                      <Text style={styles.itemName}>Shipping Fee</Text>
+                      <Text style={styles.itemPrice}>₱{SHIPPING_FEE.toFixed(2)}</Text>
+                    </View>
+                    <View style={[styles.orderItemRow, styles.totalRow]}>
+                      <Text style={styles.totalText}>Total Amount</Text>
+                      <Text style={styles.totalAmount}>
+                        ₱{(calculateOrderTotal(item)).toFixed(2)}
+                      </Text>
+                    </View>
                     <View style={styles.orderActions}>
                       <TouchableOpacity
                         style={[
@@ -823,6 +847,22 @@ const styles = StyleSheet.create({
     color: '#999',
     textDecorationLine: 'line-through',
     marginTop: 2,
+  },
+  totalRow: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#EEE',
+  },
+  totalText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  totalAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FF8C00',
   },
 });
 

@@ -160,29 +160,37 @@ exports.deleteOrderedProducts = async (req, res) => {
 exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
-      .populate('userId', 'username email')
-      .populate('products.productId')
+      .populate({
+        path: 'userId',
+        select: 'username email firebaseUid'
+      })
+      .populate('products.productId', 'name price image')
       .sort({ createdAt: -1 });
 
     const formattedOrders = orders.map(order => ({
       id: order._id,
       orderNumber: `ORD-${order._id.toString().slice(-4)}`,
-      customer: order.userId.username,
+      customer: order.userId?.username || 'Unknown',
+      customerEmail: order.userId?.email,
       date: order.createdAt,
       amount: order.products.reduce((total, item) => 
-        total + (item.productId.price * item.quantity), 0),
+        total + ((item.productId?.price || 0) * item.quantity), 0),
       status: order.status,
       items: order.products.map(item => ({
-        name: item.productId.name,
+        name: item.productId?.name || 'Unknown Product',
         quantity: item.quantity,
-        price: item.productId.price
+        price: item.productId?.price || 0
       }))
     }));
 
     res.json(formattedOrders);
   } catch (error) {
     console.error('Error fetching all orders:', error);
-    res.status(500).json({ message: 'Error fetching orders' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching orders',
+      error: error.message 
+    });
   }
 };
 

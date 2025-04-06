@@ -31,20 +31,20 @@ const CartModal = ({ visible, onClose, product }) => {
       
       if (result.success) {
         ToastAndroid.show(
-          'Product added to cart successfully!',
+          'Product added to orderlist successfully!',
           ToastAndroid.SHORT
         );
         onClose();
         setQuantity(1);
       } else {
         ToastAndroid.show(
-          result.error || 'Failed to add product to cart',
+          result.error || 'Failed to add product to orderlist',
           ToastAndroid.SHORT
         );
       }
     } catch (err) {
       ToastAndroid.show(
-        'Failed to add item to cart',
+        'Failed to add item to orderlist',
         ToastAndroid.SHORT
       );
     } finally {
@@ -61,7 +61,7 @@ const CartModal = ({ visible, onClose, product }) => {
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Add to Cart</Text>
+          <Text style={styles.modalTitle}>Add to Orderlist</Text>
           <Text style={styles.productName}>{product?.name}</Text>
           
           <View style={styles.priceContainer}>
@@ -108,7 +108,7 @@ const CartModal = ({ visible, onClose, product }) => {
             {isLoading ? (
               <ActivityIndicator color="white" size="small" />
             ) : (
-              <Text style={styles.addButtonText}>Add to Cart</Text>
+              <Text style={styles.addButtonText}>Add to Orderlist</Text>
             )}
           </TouchableOpacity>
 

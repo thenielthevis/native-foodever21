@@ -213,7 +213,13 @@ const AdminProducts = ({ navigation }) => {
               images: updatedProduct.images || [],
               price: updatedProduct.price,
               discountedPrice: updatedProduct.discountedPrice,
-              discount: updatedProduct.discount
+              discount: updatedProduct.discount,
+              category: updatedProduct.category,
+              status: updatedProduct.status,
+              description: updatedProduct.description,
+              ratings: updatedProduct.ratings,
+              numOfReviews: updatedProduct.numOfReviews,
+              reviews: updatedProduct.reviews
             });
             console.log('Discount notification sent successfully');
           } catch (notificationError) {

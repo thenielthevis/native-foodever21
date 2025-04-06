@@ -470,6 +470,8 @@ const styles = StyleSheet.create({
     color: COLORS.text.medium,
     marginLeft: 10,
     flexShrink: 1,
+    justifyContent: 'center',
+    textAlign: 'center',
   },
 });
 

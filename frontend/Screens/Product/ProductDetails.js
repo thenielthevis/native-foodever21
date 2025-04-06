@@ -385,7 +385,7 @@ const ProductDetails = ({ route, navigation }) => {
             styles.buttonText,
             product.status !== 'Available' && styles.disabledButtonText
           ]}>
-            {product.status === 'Available' ? 'Add to Cart' : 'Unavailable'}
+            {product.status === 'Available' ? 'Add to Orderlist' : 'Add to Orderlist'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity 
@@ -401,7 +401,7 @@ const ProductDetails = ({ route, navigation }) => {
             styles.buttonText,
             product.status !== 'Available' && styles.disabledButtonText
           ]}>
-            {product.status === 'Available' ? 'Order Now' : 'Unavailable'}
+            {product.status === 'Available' ? 'Order Now' : 'Order Now'}
           </Text>
         </TouchableOpacity>
       </View>

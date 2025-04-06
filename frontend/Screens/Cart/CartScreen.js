@@ -129,7 +129,7 @@ const CartScreen = () => {
   const handleDelete = async (orderId) => {
     Alert.alert(
       'Remove Item',
-      'Are you sure you want to remove this item from cart?',
+      'Are you sure you want to remove this item from orderlist?',
       [
         {
           text: 'Cancel',
@@ -168,9 +168,6 @@ const CartScreen = () => {
         type: 'SET_SELECTED_ORDERS',
         payload: selectedOrders
       });
-
-      // Clear selected items from cart
-      await dispatch(clearSelectedItems(selectedOrders));
 
       // Reset selection state
       setSelectedItems({});
