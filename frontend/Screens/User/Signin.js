@@ -21,6 +21,9 @@ import { setCurrentUser, googleLoginUser } from '../../Redux/Actions/Auth.action
 import 'expo-dev-client';
 import { ReactNativeFirebase } from "@react-native-firebase/app";
 
+// Add this near the top with other imports
+import { registerForPushNotificationsAsync } from '../../utils/pushNotifications';
+
 // Initialize Google Sign-in
 GoogleSignin.configure(GOOGLE_SIGNIN_CONFIG);
 
@@ -110,29 +113,62 @@ const Signin = ({ navigation }) => {
         token: idToken
       };
 
-      // Save tokens and user data
-      await SecureStore.setItemAsync("userData", JSON.stringify(userData));
-      await SecureStore.setItemAsync("jwt", idToken);
+      // Store tokens FIRST and wait for them to complete
+      await Promise.all([
+        SecureStore.setItemAsync("userData", JSON.stringify(userData)),
+        SecureStore.setItemAsync("jwt", idToken)
+      ]);
+      console.log('Auth tokens stored successfully');
 
-      // Dispatch actions to Redux store
+      // Verify token storage
+      const storedToken = await SecureStore.getItemAsync("jwt");
+      if (!storedToken) {
+        throw new Error('Failed to store authentication token');
+      }
+      console.log('Token storage verified');
+
+      // AFTER storing tokens, register push notification
+      const pushToken = await registerForPushNotificationsAsync();
+      console.log('Push token registration result:', pushToken);
+      
+      if (pushToken) {
+        try {
+          // Verify token is stored
+          const storedToken = await SecureStore.getItemAsync("jwt");
+          if (!storedToken) {
+            throw new Error('Auth token not found after storage');
+          }
+
+          const tokenResponse = await fetch(`${API_URL}/auth/update-fcm-token`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${storedToken}`
+            },
+            body: JSON.stringify({ 
+              fcmToken: pushToken,
+              deviceType: Platform.OS,
+              tokenType: 'expo'
+            })
+          });
+
+          if (!tokenResponse.ok) {
+            throw new Error(await tokenResponse.text());
+          }
+
+          console.log('FCM token update successful');
+        } catch (pushError) {
+          console.warn('Push token update failed:', pushError.message);
+        }
+      }
+
+      // Continue with Redux dispatch and navigation
       dispatch(setCurrentUser(userData, backendResponse.data.user));
       await dispatch(googleLoginUser({
         user: userCredential.user,
         backendUser: backendResponse.data.user
       }));
 
-      // Optional: Register for push notifications if needed
-      try {
-        const pushToken = await registerForPushNotificationsAsync();
-        if (pushToken) {
-          await registerPushNotificationToken(pushToken);
-        }
-      } catch (pushError) {
-        console.warn('Push notification registration failed:', pushError);
-        // Continue with login even if push registration fails
-      }
-
-      // Navigate to Home
       navigation.reset({
         index: 0,
         routes: [{ name: 'Home' }],
@@ -217,76 +253,57 @@ const Signin = ({ navigation }) => {
     setError('');
     
     try {
-      console.log("Signin - Attempting Firebase auth with:", email);
-      
+      // Firebase authentication
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       const token = await user.getIdToken();
       
+      // Store token FIRST and wait for it to complete
       await SecureStore.setItemAsync("jwt", token);
-      console.log("Signin - Firebase auth successful, token stored");
-      
-      try {
-        console.log("Signin - Calling backend login...");
-        const backendResponse = await axios.post(
-          `${API_URL}/auth/login`,
-          {
-            email: user.email,
-            uid: user.uid
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+      console.log('Auth token stored successfully');
+
+      // Backend login
+      const backendResponse = await axios.post(
+        `${API_URL}/auth/login`,
+        {
+          email: user.email,
+          uid: user.uid
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
-        );
-        
-        console.log("Signin - Backend response:", backendResponse.data);
-        
-        if (!backendResponse.data.success || !backendResponse.data.user || !backendResponse.data.user._id) {
-          console.error("Invalid response structure:", backendResponse.data);
-          throw new Error('Invalid response from server');
         }
+      );
+      
+      // Store user data
+      const userData = {
+        _id: backendResponse.data.user._id,
+        username: backendResponse.data.user.username || user.displayName || email.split('@')[0],
+        email: backendResponse.data.user.email || user.email,
+        role: backendResponse.data.user.role || 'user',
+        status: backendResponse.data.user.status || 'active',
+        firebaseUid: user.uid,
+        token: token
+      };
 
-        const userData = {
-          _id: backendResponse.data.user._id,
-          username: backendResponse.data.user.username || user.displayName || email.split('@')[0],
-          email: backendResponse.data.user.email || user.email,
-          role: backendResponse.data.user.role || 'user',
-          status: backendResponse.data.user.status || 'active',
-          firebaseUid: user.uid,
-          token: token
-        };
+      await SecureStore.setItemAsync("userData", JSON.stringify(userData));
+      console.log('User data stored successfully');
 
-        console.log("Signin - Storing user data:", {
-          id: userData._id,
-          email: userData.email,
-          username: userData.username
-        });
-
-        await SecureStore.setItemAsync("userData", JSON.stringify(userData));
-        
-        // Verify stored data
-        const storedData = await SecureStore.getItemAsync("userData");
-        const parsedData = JSON.parse(storedData);
-        console.log('Signin - Verification:', {
-          stored_id: parsedData._id,
-          stored_email: parsedData.email,
-          has_token: !!parsedData.token
-        });
-
-        await dispatch(fetchCartCount());  // Add this line
-
-        setIsLoading(false);
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Home' }],
-        });
-        
-      } catch (backendError) {
-        console.error("Signin - Backend error:", backendError);
-        throw new Error(backendError.message || 'Failed to complete login');
+      // Now register push notification token
+      const pushToken = await registerForPushNotificationsAsync();
+      if (pushToken) {
+        console.log('Successfully registered push token:', pushToken);
       }
+
+      // Rest of your code (dispatch, navigation etc)
+      await dispatch(fetchCartCount());
+      
+      setIsLoading(false);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
       
     } catch (error) {
       console.error("Signin error:", error);

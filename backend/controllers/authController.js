@@ -116,10 +116,10 @@ exports.deleteUser = async (req, res) => {
 
 // Modify the login function to check user status
 exports.login = async (req, res) => {
-  const { email, uid, displayName, photoURL } = req.body;
+  const { email, uid, displayName, photoURL, fcmToken } = req.body;  // Add fcmToken here
 
   try {
-    console.log('Login request received:', { email, uid, displayName });
+    console.log('Login request received:', { email, uid, displayName, fcmToken });
     
     if (!email || !uid) {
       return res.status(400).json({
@@ -157,6 +157,15 @@ exports.login = async (req, res) => {
       } catch (firestoreError) {
         console.warn('Firestore document creation failed:', firestoreError);
       }
+    }
+
+    // Update FCM token if provided
+    if (fcmToken) {
+      user.fcmToken = fcmToken;
+      user.fcmTokenUpdatedAt = new Date();
+      user.fcmTokenStatus = 'active';
+      await user.save();
+      console.log('Updated FCM token for user:', email);
     }
 
     // Check if user is active
@@ -706,61 +715,103 @@ exports.getAllUsers = async (req, res) => {
 
 
 exports.updateFcmToken = async (req, res) => {
-  const { fcmToken } = req.body;  // Get FCM token from request body
-
-
-  if (!fcmToken) {
-      return res.status(400).json({ message: 'FCM token is required' });
-  }
-
-
   try {
-      // The user is authenticated by the 'protect' middleware
-      const user = req.user;  // User data is attached by 'protect' middleware
-
-
-      if (!user) {
-          return res.status(404).json({ message: 'User not found' });
-      }
-
-
-      // Update the FCM token with timestamp and status
-      await user.updateFcmToken(fcmToken);
-
-
-      return res.status(200).json({
-          message: 'FCM token updated successfully',
-          tokenStatus: 'active',
-          updatedAt: user.fcmTokenUpdatedAt
+    const { fcmToken, deviceType, tokenType } = req.body;
+    
+    if (!fcmToken) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'FCM token is required' 
       });
+    }
+
+    // Get user from Firebase token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'No token provided' 
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const user = await User.findOne({ firebaseUid: decodedToken.uid });
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
+    // Format and store the token information
+    user.fcmToken = fcmToken;
+    user.fcmTokenUpdatedAt = new Date();
+    user.fcmTokenStatus = 'active';
+    user.deviceType = deviceType || 'unknown';
+    user.tokenType = tokenType || 'expo';
+    
+    await user.save();
+    console.log('Token updated for user:', {
+      email: user.email,
+      token: fcmToken,
+      deviceType,
+      tokenType
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Token updated successfully',
+      fcmToken: fcmToken,
+      status: 'active'
+    });
+    
   } catch (error) {
-      console.error('Error updating FCM token:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+    console.error('Error updating token:', error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message || 'Failed to update token'
+    });
   }
 };
 
 
 exports.removeFcmToken = async (req, res) => {
   try {
-      const user = req.user;
+    // Get the Firebase UID from the decoded token
+    const decodedToken = await admin.auth().verifyIdToken(req.headers.authorization.split(' ')[1]);
+    
+    // Find the user in MongoDB using the Firebase UID
+    const user = await User.findOne({ firebaseUid: decodedToken.uid });
 
-
-      if (!user) {
-          return res.status(404).json({ message: 'User not found' });
-      }
-
-
-      // Even if token is null, we should update status to inactive
-      user.fcmTokenStatus = 'inactive';
-      await user.save();
-
-
-      return res.status(200).json({
-          message: 'FCM token invalidated successfully'
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
       });
+    }
+
+    // Update token fields
+    user.fcmToken = null;
+    user.fcmTokenStatus = 'inactive';
+    user.fcmTokenUpdatedAt = null;
+    
+    await user.save();
+    
+    console.log('FCM token removed for user:', user.email);
+
+    return res.status(200).json({
+      success: true,
+      message: 'FCM token invalidated successfully'
+    });
   } catch (error) {
-      console.error('Error invalidating FCM token:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+    console.error('Error invalidating FCM token:', error);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Internal server error',
+      error: error.message 
+    });
   }
 };
 
@@ -768,31 +819,45 @@ exports.removeFcmToken = async (req, res) => {
 // Add a function to clean up stale tokens (could be run periodically)
 exports.cleanStaleTokens = async (req, res) => {
   try {
-      // Only allow admins to perform this operation
-      if (req.user.role !== 'admin') {
-          return res.status(403).json({ message: 'Not authorized to perform this action' });
+    // Only allow admins to perform this operation
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to perform this action' });
+    }
+    
+    const staleDate = new Date();
+    staleDate.setMonth(staleDate.getMonth() - 1); // Tokens older than 1 month
+    
+    // Find users with active tokens that haven't been updated for a month
+    const result = await User.updateMany(
+      {
+        $and: [
+          { fcmTokenStatus: 'active' },
+          { fcmToken: { $ne: null } },
+          { fcmTokenUpdatedAt: { $lt: staleDate } },
+          { fcmTokenUpdatedAt: { $ne: null } }
+        ]
+      },
+      {
+        $set: { 
+          fcmTokenStatus: 'inactive',
+          fcmToken: null,
+          fcmTokenUpdatedAt: null
+        }
       }
-     
-      const staleDate = new Date();
-      staleDate.setMonth(staleDate.getMonth() - 1); // Tokens older than 1 month
-     
-      // Find users with active tokens that haven't been updated for a month
-      const result = await User.updateMany(
-          {
-              fcmTokenStatus: 'active',
-              fcmTokenUpdatedAt: { $lt: staleDate }
-          },
-          {
-              $set: { fcmTokenStatus: 'inactive' }
-          }
-      );
-     
-      return res.status(200).json({
-          message: 'Stale tokens cleaned successfully',
-          tokensInvalidated: result.nModified
-      });
+    );
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Stale tokens cleaned successfully',
+      tokensInvalidated: result.modifiedCount,
+      staleThreshold: staleDate
+    });
   } catch (error) {
-      console.error('Error cleaning stale tokens:', error);
-      return res.status(500).json({ message: 'Internal server error' });
+    console.error('Error cleaning stale tokens:', error);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Internal server error',
+      error: error.message 
+    });
   }
 };

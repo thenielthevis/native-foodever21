@@ -43,6 +43,16 @@ const userSchema = new mongoose.Schema({
         enum: ['active', 'inactive'],
         default: 'inactive',
     },
+    deviceType: {
+        type: String,
+        enum: ['ios', 'android', 'web', 'unknown'],
+        default: 'unknown'
+    },
+    tokenType: {
+        type: String,
+        enum: ['expo', 'fcm', 'apns'],
+        default: 'expo'
+    },
     status: {
         type: String,
         enum: ['active', 'inactive'],

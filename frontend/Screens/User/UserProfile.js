@@ -22,6 +22,7 @@ import * as SecureStore from 'expo-secure-store';
 import { SET_CART_COUNT } from '../../Redux/Constants/cartConstants';
 import { clearCartData } from '../../Redux/Actions/cartActions';
 import TokenExpired from '../Modals/TokenExpired';
+import { API_URL } from '@env';
 
 // Color palette
 const COLORS = {
@@ -114,20 +115,34 @@ const UserProfile = ({ navigation }) => {
 
   const handleSignOut = async () => {
     try {
-      // First clear Redux state
+      // First remove FCM token
+      const response = await fetch(`${API_URL}/auth/remove-fcm-token`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await SecureStore.getItemAsync('jwt')}`
+        }
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to remove FCM token:', await response.text());
+      }
+
+      // Clear Redux state
       dispatch(clearCartData());
       dispatch({ type: SET_CART_COUNT, payload: 0 });
-     
-      // Then clear storage
+      
+      // Clear storage
       await Promise.all([
         SecureStore.deleteItemAsync("jwt"),
-        SecureStore.deleteItemAsync("userData")
+        SecureStore.deleteItemAsync("userData"),
+        SecureStore.deleteItemAsync("fcmToken") // Also clear stored FCM token if you have one
       ]);
-     
-      // Finally logout from auth
+      
+      // Logout from auth
       await auth.signOut();
       await logoutUser(dispatch);
-     
+      
       navigation.reset({
         index: 0,
         routes: [{ name: 'Signin' }],
