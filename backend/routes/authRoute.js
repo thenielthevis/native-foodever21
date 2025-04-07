@@ -36,7 +36,7 @@ router.get('/me', protect, getCurrentUser);
 // router.get('/users', getUsers);
 
 // Keep only one route for getting all users and protect it
-router.get('/users', protect, adminProtect, getAllUsers);
+router.get('/users', protect, getAllUsers);
 
 //checking email and deleting user
 router.get('/check-email/:email', checkEmail);

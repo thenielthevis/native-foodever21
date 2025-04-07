@@ -50,9 +50,16 @@ const NotificationDetails = ({ route, navigation }) => {
         _id: notificationData.productId,
         name: notificationData.productName,
         image: notificationData.image,
+          images: notificationData.images || [], // Add images array
         price: notificationData.price,
         discountedPrice: notificationData.discountedPrice,
-        discount: notificationData.discount
+        discount: notificationData.discount,
+          category: notificationData.category || 'Unknown', // Add category
+          status: notificationData.status || 'Available', // Add status
+          description: notificationData.description || '', // Add description
+          ratings: notificationData.ratings || 0,
+          numOfReviews: notificationData.numOfReviews || 0,
+          reviews: notificationData.reviews || []
       });
     }
     
@@ -70,6 +77,36 @@ const NotificationDetails = ({ route, navigation }) => {
     await setupNotification();
     setRefreshing(false);
   };
+
+  useEffect(() => {
+    const fetchCompleteProductData = async () => {
+      if (notification?.data?.type === 'PRODUCT_DISCOUNT' && notification?.data?.productId) {
+        try {
+          const token = await SecureStore.getItemAsync('jwt');
+          const response = await axios.get(
+            `${API_URL}/product/${notification.data.productId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            }
+          );
+
+          if (response.data.product) {
+            setProduct({
+              ...response.data.product,
+              discountedPrice: response.data.product.price * (1 - response.data.product.discount / 100)
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching complete product data:', error);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchCompleteProductData();
+  }, [notification]);
 
   const fetchOrderDetails = async (orderId) => {
     if (orderId) {
@@ -214,7 +251,7 @@ const NotificationDetails = ({ route, navigation }) => {
       .join(' ');
   };
 
-  // Add renderProductDiscount function
+  // Update the renderProductDiscount function
   const renderProductDiscount = () => {
     if (!product) return null;
   
@@ -229,16 +266,51 @@ const NotificationDetails = ({ route, navigation }) => {
         onPress={() => navigation.navigate('ProductDetails', { product })}
       >
         <Image
-          source={imageUrl ? { uri: imageUrl } : require('../../assets/Home/placeholder.png')}
+          source={{ uri: product.images?.[0]?.url || product.image }}
           style={styles.discountProductImage}
           defaultSource={require('../../assets/Home/placeholder.png')}
         />
         
         <View style={styles.discountInfo}>
           <Text style={styles.discountProductName}>{product.name}</Text>
+          
+          {/* Status and Category in one row */}
+          <View style={styles.statusCategoryRow}>
+            <View style={[
+              styles.statusBadge, 
+              { backgroundColor: product.status === 'Available' ? '#e6ffe6' : '#ffe6e6' }
+            ]}>
+              <View style={[
+                styles.statusDot, 
+                { backgroundColor: product.status === 'Available' ? '#00cc00' : '#ff3333' }
+              ]} />
+              <Text style={[
+                styles.statusText, 
+                { color: product.status === 'Available' ? '#006600' : '#cc0000' }
+              ]}>
+                {product.status}
+              </Text>
+            </View>
+
+            <View style={styles.categoryTag}>
+              <Text style={styles.categoryText}>{product.category}</Text>
+            </View>
+          </View>
+          
+          {/* Ratings and Reviews */}
+          <View style={styles.reviewsContainer}>
+            <View style={styles.ratingContainer}>
+              {renderStars(product.ratings)}
+              <Text style={styles.ratingText}>{product.ratings?.toFixed(1) || '0.0'}</Text>
+            </View>
+            <Text style={styles.reviewsCount}>
+              {product.numOfReviews || 0} {product.numOfReviews === 1 ? 'Review' : 'Reviews'}
+            </Text>
+          </View>
+
           <View style={styles.priceContainer}>
-            <Text style={styles.originalPrice}>₱{product.price.toFixed(2)}</Text>
-            <Text style={styles.discountedPrice}>₱{product.discountedPrice.toFixed(2)}</Text>
+            <Text style={styles.originalPrice}>₱{product.price?.toFixed(2)}</Text>
+            <Text style={styles.discountedPrice}>₱{product.discountedPrice?.toFixed(2)}</Text>
           </View>
           <View style={styles.discountBadge}>
             <Text style={styles.discountText}>{product.discount}% OFF</Text>
@@ -251,6 +323,24 @@ const NotificationDetails = ({ route, navigation }) => {
         </View>
       </TouchableOpacity>
     );
+  };
+
+  // Add renderStars helper function
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
+
+    for (let i = 1; i <= 5; i++) {
+      if (i <= fullStars) {
+        stars.push(<Ionicons key={i} name="star" size={16} color="#FFD700" />);
+      } else if (hasHalfStar && i === fullStars + 1) {
+        stars.push(<Ionicons key={i} name="star-half" size={16} color="#FFD700" />);
+      } else {
+        stars.push(<Ionicons key={i} name="star-outline" size={16} color="#FFD700" />);
+      }
+    }
+    return stars;
   };
 
   return (
@@ -415,6 +505,57 @@ const additionalStyles = {
     fontWeight: 'bold',
     marginRight: 5,
   },
+  categoryTag: {
+    backgroundColor: 'rgba(255, 153, 0, 0.1)',
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#ff9900',
+    marginBottom: 8,
+    marginTop: 5,
+  },
+  categoryText: {
+    color: '#ff9900',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reviewsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  ratingText: {
+    marginLeft: 5,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  reviewsCount: {
+    fontSize: 14,
+    color: '#666',
+  },
+  statusCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginVertical: 8,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    backgroundColor: 'black',
+    borderWidth: 1,
+  },
 };
 
 const styles = StyleSheet.create({
@@ -486,6 +627,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
+    borderColor: 'black',
+    borderWidth: 1,
   },
   statusText: {
     color: '#FFF',

@@ -350,7 +350,7 @@ export const getUserProductReview = (productId) => async (dispatch) => {
       });
       return null;
     } else {
-      console.error('Error fetching user review:', error);
+      console.log('Error fetching user review');
       dispatch({
         type: USER_REVIEW_FAIL,
         payload: error.response?.data?.message || error.message

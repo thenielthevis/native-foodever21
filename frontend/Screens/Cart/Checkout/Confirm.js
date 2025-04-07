@@ -38,6 +38,20 @@ const Confirm = ({ navigation }) => {
      
       if (!userProfile.mobileNumber || !userProfile.address) {
         setShowMissingInfoBanner(true);
+        Alert.alert(
+          'Missing Information',
+          'Please update your profile with mobile number and address.',
+          [
+            {
+              text: 'Update Profile',
+              onPress: () => navigation.navigate('UserProfile')
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            }
+          ]
+        );
       } else {
         setShowMissingInfoBanner(false);
       }
@@ -86,8 +100,7 @@ const Confirm = ({ navigation }) => {
       };
 
       checkAuth();
-    }, [])
-  );
+    }, []));
 
   if (!userData) {
     return (
@@ -134,7 +147,7 @@ const Confirm = ({ navigation }) => {
       // First place the order
       await dispatch(placeOrder(orderData));
       
-      // Then clear selected items - note that we're calling dispatch here
+      // Only clear selected items after successful order placement
       await dispatch(clearSelectedItems(selectedOrders));
       
       Alert.alert(

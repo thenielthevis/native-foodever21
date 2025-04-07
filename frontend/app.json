@@ -28,7 +28,6 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.INTERNET"
       ],
-      "debuggerHost": "192.168.1.254:8081",
       "enableHermes": true
     },
     "web": {

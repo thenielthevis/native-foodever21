@@ -142,7 +142,7 @@ const CartScreen = () => {
   const handleDelete = async (orderId) => {
     Alert.alert(
       'Remove Item',
-      'Are you sure you want to remove this item from cart?',
+      'Are you sure you want to remove this item from orderlist?',
       [
         {
           text: 'Cancel',
@@ -181,6 +181,9 @@ const CartScreen = () => {
         type: 'SET_SELECTED_ORDERS',
         payload: selectedOrders
       });
+
+      // Reset selection state
+      setSelectedItems({});
 
       // Navigate to confirmation screen
       navigation.navigate('Confirm');

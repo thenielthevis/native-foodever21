@@ -31,7 +31,8 @@ const Search = ({ navigation }) => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [shouldFilter, setShouldFilter] = useState(false);
-  
+  const [isFiltering, setIsFiltering] = useState(false); // Add this line
+
   const dispatch = useDispatch();
   const productList = useSelector((state) => state.productList);
   const { loading, error, products = [] } = productList;
@@ -44,6 +45,7 @@ const Search = ({ navigation }) => {
     if (products && shouldFilter) {
       filterProducts(products);
       setShouldFilter(false); // Reset filter flag
+      setIsFiltering(false); // Add this line
     }
   }, [shouldFilter, products, selectedCategory, priceRange, searchQuery]);
 
@@ -72,6 +74,7 @@ const Search = ({ navigation }) => {
   };
 
   const handleFilter = () => {
+    setIsFiltering(true); // Add this line
     setShouldFilter(true);
   };
 
@@ -145,6 +148,34 @@ const Search = ({ navigation }) => {
       {/* Price range filter */}
       <View style={styles.priceFilterContainer}>
         <Text style={styles.priceLabel}>Price Range</Text>
+        <View style={styles.priceInputContainer}>
+          <View style={styles.priceInputWrapper}>
+            <Text style={styles.priceInputLabel}>From:</Text>
+            <TextInput
+              style={styles.priceInput}
+              keyboardType="numeric"
+              value={priceRange[0].toString()}
+              onChangeText={(text) => {
+                const value = parseInt(text) || 0;
+                setPriceRange([value, priceRange[1]]);
+              }}
+              placeholder="Min"
+            />
+          </View>
+          <View style={styles.priceInputWrapper}>
+            <Text style={styles.priceInputLabel}>To:</Text>
+            <TextInput
+              style={styles.priceInput}
+              keyboardType="numeric"
+              value={priceRange[1].toString()}
+              onChangeText={(text) => {
+                const value = parseInt(text) || 0;
+                setPriceRange([priceRange[0], value]);
+              }}
+              placeholder="Max"
+            />
+          </View>
+        </View>
         <MultiSlider
           values={[priceRange[0], priceRange[1]]}
           min={0}
@@ -181,39 +212,45 @@ const Search = ({ navigation }) => {
         <ActivityIndicator size="large" color="#ff9900" style={styles.loader} />
       ) : (
         <ScrollView style={styles.resultsContainer}>
-          {filteredProducts.map((product) => (
-            <TouchableOpacity 
-              key={product._id}
-              style={styles.productCard}
-              onPress={() => navigation.navigate('ProductDetails', { product })}>
-              <View style={styles.productImageContainer}>
-                {product.discount > 0 && (
-                  <View style={styles.discountTagContainer}>
+          {isFiltering ? (
+            <ActivityIndicator size="large" color="#ff9900" style={styles.filterLoader} />
+          ) : (
+            <>
+              {filteredProducts.map((product) => (
+                <TouchableOpacity 
+                  key={product._id}
+                  style={styles.productCard}
+                  onPress={() => navigation.navigate('ProductDetails', { product })}>
+                  <View style={styles.productImageContainer}>
+                    {product.discount > 0 && (
+                      <View style={styles.discountTagContainer}>
+                        <Image
+                          source={require('../../assets/Home/discount-tag.png')}
+                          style={styles.discountTag}
+                        />
+                        <Text style={styles.discountText}>{product.discount}%</Text>
+                      </View>
+                    )}
                     <Image
-                      source={require('../../assets/Home/discount-tag.png')}
-                      style={styles.discountTag}
+                      source={
+                        product.images && product.images[0]
+                          ? { uri: product.images[0].url }
+                          : require('../../assets/Home/placeholder.png')
+                      }
+                      style={styles.productImage}
                     />
-                    <Text style={styles.discountText}>{product.discount}%</Text>
                   </View>
-                )}
-                <Image
-                  source={
-                    product.images && product.images[0]
-                      ? { uri: product.images[0].url }
-                      : require('../../assets/Home/placeholder.png')
-                  }
-                  style={styles.productImage}
-                />
-              </View>
-              <View style={styles.productInfo}>
-                <Text style={styles.productName}>{product.name}</Text>
-                {renderProductPrice(product)}
-                <Text style={styles.productCategory}>{product.category}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-          {filteredProducts.length === 0 && (
-            <Text style={styles.noResults}>No products found</Text>
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productName}>{product.name}</Text>
+                    {renderProductPrice(product)}
+                    <Text style={styles.productCategory}>{product.category}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+              {filteredProducts.length === 0 && (
+                <Text style={styles.noResults}>No products found</Text>
+              )}
+            </>
           )}
         </ScrollView>
       )}
@@ -289,6 +326,7 @@ const styles = StyleSheet.create({
   sliderContainer: {
     height: 50, // Increased to accommodate price labels
     marginTop: 5,
+    marginLeft: 15,
   },
   sliderTrack: {
     height: 4,
@@ -401,6 +439,35 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
     backgroundColor: '#f5f5f5',
+  },
+  priceInputContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  priceInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    width: '45%',
+  },
+  priceInputLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 8,
+  },
+  priceInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+    padding: 4,
+  },
+  filterLoader: {
+    marginTop: 20,
+    alignSelf: 'center',
   },
 });
 

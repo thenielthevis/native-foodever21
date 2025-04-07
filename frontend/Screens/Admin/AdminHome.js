@@ -298,19 +298,29 @@ const AdminHome = ({ navigation }) => {
     navigation.navigate('AdminProducts');
   };
 
-  // Update the recentOrders calculation with proper null checks
+  // Update the recentOrders calculation with proper price handling
   const recentOrders = useMemo(() => {
     if (!adminOrders || !Array.isArray(adminOrders)) return [];
     
     return [...adminOrders]
       .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-      .slice(0, 3) // Show only top 3
-      .map(order => ({
-        id: order._id || order.id || Math.random().toString(),
-        orderNumber: `ORDER-${(order._id || order.id).toString().slice(-4)}`,
-        customer: order.user?.name || order.customer || 'Anonymous',
-        amount: order.amount || 0
-      }));
+      .slice(0, 3)
+      .map(order => {
+        // Calculate total including shipping
+        const subtotal = order.products?.reduce((total, item) => {
+          const itemPrice = item.discountedPrice || item.price;
+          return total + (itemPrice * item.quantity);
+        }, 0) || order.amount || 0;
+        
+        const totalWithShipping = subtotal + 50; // Add shipping fee
+
+        return {
+          id: order._id || order.id || Math.random().toString(),
+          orderNumber: `ORDER-${(order._id || order.id).toString().slice(-4)}`,
+          customer: order.user?.name || order.customer || 'Anonymous',
+          amount: totalWithShipping
+        };
+      });
   }, [adminOrders]);
 
   const dashboardCards = useMemo(() => [
