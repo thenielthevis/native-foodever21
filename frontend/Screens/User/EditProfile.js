@@ -169,16 +169,16 @@ const EditProfile = ({ route, navigation }) => {
  
   return (
     <LinearGradient
-      colors={['#FF8C42', '#F9A826', '#FFF1D0']}
+      colors={['#8B4513', '#A0522D', '#CD853F']} // Warm earthy food-inspired colors
       style={[styles.container, { paddingTop: insets.top }]}
     >
-      <StatusBar backgroundColor="white" barStyle="dark-content" />
+      <StatusBar backgroundColor="#8B4513" barStyle="light-content" />
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <FontAwesome name="arrow-left" size={24} color="#FF8C42" />
+          <FontAwesome name="arrow-left" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>
         <View style={styles.rightPlaceholder} />
@@ -194,7 +194,7 @@ const EditProfile = ({ route, navigation }) => {
                 defaultSource={require('../../assets/defaults/profile-pic.png')} // Add a default image
               />
             ) : (
-              <View style={[styles.placeholderImage, { backgroundColor: '#FF8C42' }]}>
+              <View style={styles.placeholderImage}>
                 <FontAwesome name="user" size={40} color="#FFFFFF" />
               </View>
             )}
@@ -206,7 +206,10 @@ const EditProfile = ({ route, navigation }) => {
           <Text style={styles.changePhotoText}>Tap to change photo</Text>
          
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Username</Text>
+            <Text style={styles.label}>
+              <FontAwesome name="user" size={14} color="#8B4513" style={styles.inputIcon} />
+              Username
+            </Text>
             <TextInput
               style={styles.input}
               value={username}
@@ -217,7 +220,10 @@ const EditProfile = ({ route, navigation }) => {
           </View>
          
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Mobile Number</Text>
+            <Text style={styles.label}>
+              <FontAwesome name="phone" size={14} color="#8B4513" style={styles.inputIcon} />
+              Mobile Number
+            </Text>
             <TextInput
               style={styles.input}
               value={mobileNumber}
@@ -229,7 +235,10 @@ const EditProfile = ({ route, navigation }) => {
           </View>
          
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Address</Text>
+            <Text style={styles.label}>
+              <FontAwesome name="map-marker" size={14} color="#8B4513" style={styles.inputIcon} />
+              Address
+            </Text>
             <TextInput
               style={[styles.input, styles.multilineInput]}
               value={address}
@@ -282,17 +291,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 15,
     paddingVertical: 15,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'transparent',
   },
   backButton: {
     padding: 5,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFF',
   },
   rightPlaceholder: {
     width: 24,
@@ -302,32 +309,37 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   formContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.97)',
     borderRadius: 15,
     padding: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
     alignItems: 'center',
   },
   imageContainer: {
     position: 'relative',
     marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 3,
   },
   profileImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
     borderWidth: 3,
-    borderColor: '#FF8C42',
+    borderColor: '#8B4513',
   },
   placeholderImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#FF8C42', // Changed to match UserProfile color scheme
+    backgroundColor: '#8B4513',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
@@ -338,16 +350,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     backgroundColor: '#FF8C42',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFF',
   },
   changePhotoText: {
-    color: '#FF8C42',
+    color: '#8B4513',
     marginBottom: 20,
     fontSize: 14,
     fontWeight: '500',
@@ -358,24 +370,38 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: '#333',
+    color: '#8B4513',
     marginBottom: 8,
-    fontWeight: '500',
+    fontWeight: '600',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputIcon: {
+    marginRight: 8,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFAF5',
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderColor: 'rgba(139, 69, 19, 0.2)',
     borderRadius: 12,
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#333',
+    color: '#5D4037',
+  },
+  multilineInput: {
+    height: 100,
+    paddingTop: 12,
+    textAlignVertical: 'top',
   },
   errorText: {
     color: '#FF3B30',
     marginBottom: 15,
     textAlign: 'center',
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    padding: 8,
+    borderRadius: 8,
+    width: '100%',
   },
   saveButtonContainer: {
     width: '100%',
@@ -392,7 +418,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   saveButtonText: {
     color: '#FFF',
@@ -401,10 +427,6 @@ const styles = StyleSheet.create({
   },
   buttonIcon: {
     marginRight: 8,
-  },
-  multilineInput: {
-    height: 100,
-    paddingTop: 12,
   },
 });
 

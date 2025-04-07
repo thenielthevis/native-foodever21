@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Image, Text, TouchableOpacity, ScrollView, Animated, Modal, SafeAreaView, ImageBackground, ActivityIndicator, StatusBar } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { StyleSheet, View, Image, Text, TouchableOpacity, ScrollView, Animated, Modal, SafeAreaView, ImageBackground, ActivityIndicator, StatusBar, RefreshControl } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { listProducts } from '../../Redux/Actions/productActions';
 import { fetchCartCount } from '../../Redux/Actions/cartActions';
@@ -14,6 +14,7 @@ const Home = ({ navigation }) => {
   const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
   const [productImageIndexes, setProductImageIndexes] = useState({});
   const [showTokenExpiredModal, setShowTokenExpiredModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const bannerImages = [
     require('../../assets/Home/burger-banner.jpg'),
@@ -177,6 +178,22 @@ const Home = ({ navigation }) => {
     setShowTokenExpiredModal(false);
   };
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    Promise.all([
+      dispatch(fetchCartCount()),
+      dispatch(listProducts())
+    ])
+    .catch(error => {
+      if (error.message?.includes('expired') || error.response?.status === 401) {
+        setShowTokenExpiredModal(true);
+      }
+    })
+    .finally(() => {
+      setRefreshing(false);
+    });
+  }, [dispatch]);
+
   return (
     <>
       <StatusBar translucent backgroundColor="transparent" />
@@ -187,7 +204,16 @@ const Home = ({ navigation }) => {
             <ScrollView 
               onScroll={handleScroll} 
               scrollEventThrottle={16} 
-              contentContainerStyle={styles.scrollContainer}>
+              contentContainerStyle={styles.scrollContainer}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={['#ff9900']}
+                  tintColor="#ff9900"
+                  progressBackgroundColor="#ffffff"
+                />
+              }>
               <View style={styles.carouselContainer}>
                 <Image source={bannerImages[activeIndex]} style={styles.carouselImage} />
                 <View style={styles.carouselOverlay}>

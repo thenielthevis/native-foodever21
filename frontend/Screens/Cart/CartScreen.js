@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, Image, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet, Image, ActivityIndicator, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { getUserOrderList, removeFromCart, fetchOrderCount, updateCartQuantity, clearSelectedItems } from '../../Redux/Actions/cartActions';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +15,8 @@ const CartScreen = () => {
   const navigation = useNavigation();
   const [selectedItems, setSelectedItems] = useState({});
   const [loading, setLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);  // Add this line
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Memoize the selector
   const cartSelector = useMemo(() => {
@@ -91,6 +92,18 @@ const CartScreen = () => {
     const unsubscribe = navigation.addListener('focus', loadCart);
     return unsubscribe;
   }, [dispatch, navigation]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await dispatch(getUserOrderList());
+      await dispatch(fetchOrderCount());
+    } catch (error) {
+      console.error('Error refreshing cart:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch]);
 
   const handleQuantityUpdate = async (orderId, newQuantity) => {
     if (newQuantity <= 0) {
@@ -169,14 +182,11 @@ const CartScreen = () => {
         payload: selectedOrders
       });
 
-      // Clear selected items from cart
-      await dispatch(clearSelectedItems(selectedOrders));
-
-      // Reset selection state
-      setSelectedItems({});
-
       // Navigate to confirmation screen
       navigation.navigate('Confirm');
+
+      // Note: Items should be removed from cart only after confirming the order
+      // in the Confirm screen, not at this stage
 
     } catch (error) {
       console.error('handleOrderNow - Error:', error);
@@ -276,10 +286,22 @@ const CartScreen = () => {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Cart</Text>
+      </View>
       <FlatList
         data={orderList}
         renderItem={renderItem}
         keyExtractor={item => item.order_id?.toString()}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#ff9900']}
+            tintColor="#ff9900"
+            progressBackgroundColor="#ffffff"
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyCart}>
             <Text>No items in orderlist</Text>
@@ -316,6 +338,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  header: {
+    backgroundColor: '#ff9900',
+    paddingTop: 40,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
   },
   orderItem: {
     flexDirection: 'row',

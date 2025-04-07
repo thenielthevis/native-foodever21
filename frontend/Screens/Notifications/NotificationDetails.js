@@ -6,7 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  ActivityIndicator
+  ActivityIndicator,
+  RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { markAsRead } from '../../services/notificationsDB';
@@ -19,47 +20,56 @@ const NotificationDetails = ({ route, navigation }) => {
   const [order, setOrder] = useState(null);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const setupNotification = async () => {
+    if (notification?.id) {
+      await markAsRead(notification.id);
+    }
+
+    const notificationData = notification?.data || {};
+    
+    if (notificationData.type === 'ORDER_STATUS_UPDATE') {
+      if (notificationData.orderId) {
+        if (notificationData.products) {
+          setOrder({
+            _id: notificationData.orderId,
+            orderNumber: notificationData.orderNumber,
+            products: notificationData.products,
+            status: notificationData.status,
+            paymentMethod: notificationData.paymentMethod,
+            createdAt: notificationData.orderDate,
+            customer: notificationData.customer
+          });
+        } else {
+          await fetchOrderDetails(notificationData.orderId);
+        }
+      }
+    } else if (notificationData.type === 'PRODUCT_DISCOUNT') {
+      setProduct({
+        _id: notificationData.productId,
+        name: notificationData.productName,
+        image: notificationData.image,
+        price: notificationData.price,
+        discountedPrice: notificationData.discountedPrice,
+        discount: notificationData.discount
+      });
+    }
+    
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const setupNotification = async () => {
-      if (notification?.id) {
-        await markAsRead(notification.id);
-      }
-
-      const notificationData = notification?.data || {};
-      
-      if (notificationData.type === 'ORDER_STATUS_UPDATE') {
-        if (notificationData.orderId) {
-          if (notificationData.products) {
-            setOrder({
-              _id: notificationData.orderId,
-              orderNumber: notificationData.orderNumber,
-              products: notificationData.products,
-              status: notificationData.status,
-              paymentMethod: notificationData.paymentMethod,
-              createdAt: notificationData.orderDate,
-              customer: notificationData.customer
-            });
-          } else {
-            await fetchOrderDetails(notificationData.orderId);
-          }
-        }
-      } else if (notificationData.type === 'PRODUCT_DISCOUNT') {
-        setProduct({
-          _id: notificationData.productId,
-          name: notificationData.productName,
-          image: notificationData.image,
-          price: notificationData.price,
-          discountedPrice: notificationData.discountedPrice,
-          discount: notificationData.discount
-        });
-      }
-      
-      setLoading(false);
-    };
-
     setupNotification();
   }, [notification]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    setOrder(null);
+    setProduct(null);
+    await setupNotification();
+    setRefreshing(false);
+  };
 
   const fetchOrderDetails = async (orderId) => {
     if (orderId) {
@@ -113,15 +123,17 @@ const NotificationDetails = ({ route, navigation }) => {
   };
 
   const calculateOrderTotals = (products) => {
-    if (!products?.length) return { subtotal: 0, tax: 0, total: 0 };
+    if (!products?.length) return { subtotal: 0, total: 0 };
     
-    const subtotal = products.reduce((sum, item) => 
-      sum + (item.productId.price * item.quantity), 0);
-    const tax = subtotal * 0.12;
+    const subtotal = products.reduce((sum, item) => {
+      const product = item.productId || item;
+      const price = product.discountedPrice || product.price || 0;
+      return sum + (price * item.quantity);
+    }, 0);
+    
     return {
       subtotal,
-      tax,
-      total: subtotal + tax
+      total: subtotal
     };
   };
 
@@ -136,7 +148,7 @@ const NotificationDetails = ({ route, navigation }) => {
 
     if (!order) return null;
 
-    const { subtotal, tax, total } = calculateOrderTotals(order.products);
+    const { subtotal, total } = calculateOrderTotals(order.products);
 
     // Format order number safely
     const orderNumber = order._id 
@@ -186,7 +198,6 @@ const NotificationDetails = ({ route, navigation }) => {
 
         <OrderTotals
           subtotal={subtotal}
-          tax={tax}
           total={total}
           formatCurrency={formatCurrency}
         />
@@ -206,14 +217,19 @@ const NotificationDetails = ({ route, navigation }) => {
   // Add renderProductDiscount function
   const renderProductDiscount = () => {
     if (!product) return null;
-
+  
+    // Handle image as an array
+    const imageUrl = product.images && product.images.length > 0 
+      ? product.images[0] 
+      : product.image || null;
+  
     return (
       <TouchableOpacity 
         style={styles.productDiscountContainer}
         onPress={() => navigation.navigate('ProductDetails', { product })}
       >
         <Image
-          source={{ uri: product.image }}
+          source={imageUrl ? { uri: imageUrl } : require('../../assets/Home/placeholder.png')}
           style={styles.discountProductImage}
           defaultSource={require('../../assets/Home/placeholder.png')}
         />
@@ -249,7 +265,17 @@ const NotificationDetails = ({ route, navigation }) => {
         <Text style={styles.headerTitle}>Order Details</Text>
       </View>
       
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#FF8C00"]}
+            tintColor="#FF8C00"
+          />
+        }
+      >
         <View style={styles.notificationHeader}>
           <Ionicons 
             name={notification?.data?.type === 'PRODUCT_DISCOUNT' ? "pricetag" : "receipt"} 
@@ -278,15 +304,19 @@ const NotificationDetails = ({ route, navigation }) => {
   );
 };
 
-// Extract components for better organization
 const OrderItem = ({ item, formatCurrency }) => {
   // Check if the product exists and has the correct data
   const product = item.productId || item;
   
+  // Handle image as an array
+  const imageUrl = product.images && product.images.length > 0 
+    ? product.images[0] 
+    : product.image || null;
+  
   return (
     <View style={styles.productItem}>
       <Image
-        source={{ uri: product.image }}
+        source={imageUrl ? { uri: imageUrl } : require('../../assets/Home/placeholder.png')}
         style={styles.productImage}
         defaultSource={require('../../assets/Home/placeholder.png')}
       />
@@ -305,10 +335,9 @@ const OrderItem = ({ item, formatCurrency }) => {
   );
 };
 
-const OrderTotals = ({ subtotal, tax, total, formatCurrency }) => (
+const OrderTotals = ({ subtotal, total, formatCurrency }) => (
   <View style={styles.totalSection}>
     <TotalRow label="Subtotal" value={formatCurrency(subtotal)} />
-    <TotalRow label="Tax (12%)" value={formatCurrency(tax)} />
     <TotalRow 
       label="Total" 
       value={formatCurrency(total)}

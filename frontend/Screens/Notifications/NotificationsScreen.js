@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -6,7 +6,8 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   ActivityIndicator,
-  Alert 
+  Alert,
+  RefreshControl
 } from 'react-native';
 import { getNotifications, initNotificationsDB, clearAllNotifications } from '../../services/notificationsDB';
 import * as SecureStore from 'expo-secure-store';
@@ -17,6 +18,7 @@ const NotificationsScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadNotifications = async () => {
     try {
@@ -96,6 +98,17 @@ const NotificationsScreen = ({ navigation }) => {
     return unsubscribe;
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadNotifications();
+    } catch (error) {
+      console.error('Error refreshing notifications:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   // Update the render logic to match CartScreen's pattern
   if (isInitializing || loading || isClearing) {
     return (
@@ -155,6 +168,15 @@ const NotificationsScreen = ({ navigation }) => {
           renderItem={renderNotification}
           keyExtractor={item => `notification-${item.id}`}
           contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#FF8C00']}
+              tintColor="#FF8C00"
+              progressBackgroundColor="#ffffff"
+            />
+          }
         />
       )}
     </View>
