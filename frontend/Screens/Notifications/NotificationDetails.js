@@ -15,6 +15,8 @@ import axios from 'axios';
 import { API_URL } from '@env';
 import * as SecureStore from 'expo-secure-store';
 
+const SHIPPING_FEE = 50;
+
 const NotificationDetails = ({ route, navigation }) => {
   const { notification } = route.params;
   const [order, setOrder] = useState(null);
@@ -170,7 +172,7 @@ const NotificationDetails = ({ route, navigation }) => {
     
     return {
       subtotal,
-      total: subtotal
+      total: subtotal + SHIPPING_FEE
     };
   };
 
@@ -428,6 +430,7 @@ const OrderItem = ({ item, formatCurrency }) => {
 const OrderTotals = ({ subtotal, total, formatCurrency }) => (
   <View style={styles.totalSection}>
     <TotalRow label="Subtotal" value={formatCurrency(subtotal)} />
+    <TotalRow label="Shipping Fee" value={formatCurrency(SHIPPING_FEE)} />
     <TotalRow 
       label="Total" 
       value={formatCurrency(total)}

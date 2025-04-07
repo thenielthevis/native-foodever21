@@ -32,10 +32,8 @@ const DrawerNavigator = () => {
         console.log('Error checking user data:', error);
         setHasUserData(false);
       } finally {
-        // Add a small delay to ensure smooth initialization
-        setTimeout(() => {
-          setIsInitialized(true);
-        }, 100);
+        // Ensure drawer is properly initialized
+        setIsInitialized(true);
       }
     };
     
@@ -49,10 +47,13 @@ const DrawerNavigator = () => {
 
   return (
     <Drawer.Navigator
+      id="DrawerNavigator" // Add this id for direct reference
       useLegacyImplementation={false}
       drawerContent={props => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerShown: false,
+        drawerType: 'front', // Explicitly set drawer type
+        swipeEnabled: true, // Enable drawer swipe
         drawerActiveBackgroundColor: COLORS.primary,
         drawerActiveTintColor: COLORS.white,
         drawerInactiveTintColor: COLORS.darkGray,

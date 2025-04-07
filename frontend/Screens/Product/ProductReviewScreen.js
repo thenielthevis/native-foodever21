@@ -204,9 +204,18 @@ const ProductReviewScreen = ({ route, navigation }) => {
         
         <View style={styles.productCard}>
           <Image 
-            source={{ uri: productImage }} 
-            style={styles.productImage} 
-            defaultSource={require('../../assets/logo.png')}
+            source={
+              productImage ? 
+              { uri: productImage } : 
+              require('../../assets/Home/placeholder.png')
+            }
+            style={styles.productImage}
+            defaultSource={require('../../assets/Home/placeholder.png')}
+            onError={(e) => {
+              console.log('Image load error:', productImage);
+              e.target.onerror = null;
+              e.target.src = '../../assets/Home/placeholder.png';
+            }}
           />
           <Text style={styles.productName}>{productName}</Text>
         </View>

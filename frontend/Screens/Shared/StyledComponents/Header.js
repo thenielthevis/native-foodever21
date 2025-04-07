@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { StyleSheet, View, TextInput, TouchableOpacity, StatusBar, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
@@ -14,13 +14,31 @@ const Header = ({ isScrolled, onSearchPress }) => {
     }
   };
 
-  const openDrawer = () => {
+  const openDrawer = useCallback(() => {
     try {
-      navigation.dispatch(DrawerActions.toggleDrawer());
+      // First check if we're already in the drawer navigator
+      const parent = navigation.getParent('DrawerNavigator');
+      
+      if (parent) {
+        parent.openDrawer();
+      } else {
+        // If not in drawer, navigate to DrawerHome first
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'DrawerHome' }],
+        });
+        // Wait for navigation to complete then open drawer
+        setTimeout(() => {
+          const newParent = navigation.getParent('DrawerNavigator');
+          if (newParent) {
+            newParent.openDrawer();
+          }
+        }, 100);
+      }
     } catch (error) {
       console.log('Drawer error:', error);
     }
-  };
+  }, [navigation]);
 
   return (
     <Animated.View style={[

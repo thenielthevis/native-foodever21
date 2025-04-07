@@ -38,6 +38,12 @@ import { initNotificationsDB } from './services/notificationsDB';
 
 const Stack = createNativeStackNavigator();
 
+// Add this configuration
+const stackScreenOptions = {
+  headerShown: false,
+  animation: 'none' // Disable animation to prevent navigation race conditions
+};
+
 // Configure notifications
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -139,13 +145,18 @@ export default function App() {
             ref={navigationRef}
             onReady={() => {
               console.log('Navigation container is ready');
+              // Ensure drawer navigation is initialized
+              if (navigationRef.current) {
+                const drawerNav = navigationRef.current.getRootState()?.routes?.find(
+                  route => route.name === 'DrawerHome'
+                );
+                console.log('Drawer navigation state:', drawerNav ? 'initialized' : 'not found');
+              }
             }}
           >
             <StatusBar style="auto" />
             <Stack.Navigator 
-              screenOptions={{
-                headerShown: false
-              }}
+              screenOptions={stackScreenOptions}
               initialRouteName="DrawerHome"
             >
               <Stack.Screen 

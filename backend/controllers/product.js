@@ -32,9 +32,9 @@ const hasUserOrderedProduct = async (userId, productId) => {
 
     // Find completed orders containing this product
     const orders = await Order.find({
-      user: userId,
-      'products.productId': productObjectId,
-      status: { $in: ['completed', 'delivered'] } // Include both completed and delivered status
+      userId: userId,  // Changed from user to userId
+      'products.productId': productObjectId,  // This should match your order structure
+      status: { $in: ['completed', 'delivered', 'shipping'] }  // Added 'shipping' status
     });
 
     console.log('Order query results:', {
@@ -44,10 +44,7 @@ const hasUserOrderedProduct = async (userId, productId) => {
       orderDetails: orders.map(o => ({
         id: o._id,
         status: o.status,
-        products: o.products.map(p => ({
-          productId: p.productId,
-          quantity: p.quantity
-        }))
+        products: o.products
       }))
     });
 

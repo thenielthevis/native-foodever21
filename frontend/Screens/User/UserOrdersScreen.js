@@ -5,6 +5,8 @@ import { getUserOrders } from '../../Redux/Actions/orderActions';
 import BottomNav from '../Shared/StyledComponents/BottomNav';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const SHIPPING_FEE = 50;
+
 const UserOrdersScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const [refreshing, setRefreshing] = useState(false);
@@ -126,66 +128,35 @@ const UserOrdersScreen = ({ navigation }) => {
       );
     }
 
-    // Debug image data
-    console.log('Product image data:', {
-      productId: item.productId._id,
-      name: item.productId.name,
-      hasImages: !!item.productId.images,
-      imagesLength: item.productId.images?.length,
-      firstImage: item.productId.images?.[0]?.url,
-      directImage: item.productId.image
-    });
-
     // Get the correct image URL with multiple fallbacks
     let imageUrl = null;
-    
-    // Try standard product structure (images array)
+
+    // Try to get the first image from the images array
     if (item.productId.images && item.productId.images.length > 0) {
-      const firstImage = item.productId.images[0];
-      if (firstImage.url) {
-        imageUrl = firstImage.url;
-        console.log('Using image from images array:', imageUrl);
+      if (typeof item.productId.images[0] === 'object') {
+        imageUrl = item.productId.images[0].url;
+      } else {
+        imageUrl = item.productId.images[0];
       }
     }
-    
-    // Try direct image field if images array didn't work
-    if (!imageUrl && item.productId.image) {
+
+    // Fallback to direct image property
+    if (!imageUrl) {
       imageUrl = item.productId.image;
-      console.log('Using direct image property:', imageUrl);
-    }
-    
-    // Try alternative image property names
-    if (!imageUrl && item.productId.imageUrl) {
-      imageUrl = item.productId.imageUrl;
-      console.log('Using imageUrl property:', imageUrl);
-    }
-    
-    if (!imageUrl && item.productId.img) {
-      imageUrl = item.productId.img;
-      console.log('Using img property:', imageUrl);
-    }
-    
-    // Default fallback
-    if (!imageUrl || imageUrl.trim() === '') {
-      imageUrl = 'https://via.placeholder.com/150';
-      console.log('Using default placeholder image');
-    }
-    
-    // Check if URL needs to be prefixed (e.g., relative path vs absolute URL)
-    if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('https://via.placeholder.com')) {
-      // Add base URL if the path is relative
-      imageUrl = `${API_URL}/${imageUrl.replace(/^\/+/, '')}`;
-      console.log('Added base URL to image path:', imageUrl);
     }
 
     return (
       <View style={styles.productItem}>
         <View style={styles.productImageContainer}>
           <Image 
-            source={{ uri: imageUrl }} 
+            source={imageUrl ? { uri: imageUrl } : require('../../assets/Home/placeholder.png')}
             style={styles.productImage}
-            defaultSource={require('../../assets/logo.png')}
-            onError={() => console.log('Image failed to load:', imageUrl)}
+            defaultSource={require('../../assets/Home/placeholder.png')}
+            onError={(e) => {
+              console.log('Image load error:', imageUrl);
+              e.target.onerror = null; // Prevent infinite loop
+              e.target.src = '../../assets/Home/placeholder.png';
+            }}
           />
         </View>
         <View style={styles.productDetails}>
@@ -200,7 +171,7 @@ const UserOrdersScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('ProductReview', { 
                 productId: item.productId._id,
                 productName: item.productId.name,
-                productImage: imageUrl
+                productImage: imageUrl // Pass the corrected image URL
               })}
               color="#FF6B00"
             />
@@ -226,6 +197,14 @@ const UserOrdersScreen = ({ navigation }) => {
       }
     }));
 
+    // Calculate subtotal and total
+    const subtotal = item.products.reduce((sum, product) => {
+      const price = product.productId.price || 0;
+      return sum + (price * product.quantity);
+    }, 0);
+
+    const total = subtotal + SHIPPING_FEE;
+
     return (
       <View style={styles.orderCard}>
         <Text style={styles.orderId}>Order #{item._id.slice(-6)}</Text>
@@ -247,9 +226,18 @@ const UserOrdersScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.totalContainer}>
-          <Text style={styles.orderTotal}>
-            Total: ₱{item.totalPrice?.toFixed(2) || '0.00'}
-          </Text>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Subtotal:</Text>
+            <Text style={styles.totalValue}>₱{subtotal.toFixed(2)}</Text>
+          </View>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Shipping Fee:</Text>
+            <Text style={styles.totalValue}>₱{SHIPPING_FEE.toFixed(2)}</Text>
+          </View>
+          <View style={[styles.totalRow, styles.finalTotalRow]}>
+            <Text style={styles.totalLabel}>Total:</Text>
+            <Text style={styles.orderTotal}>₱{total.toFixed(2)}</Text>
+          </View>
         </View>
       </View>
     );
@@ -295,6 +283,28 @@ const UserOrdersScreen = ({ navigation }) => {
       <BottomNav navigation={navigation} activeRoute="Orders" />
     </SafeAreaView>
   );
+};
+
+const additionalStyles = {
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  totalValue: {
+    fontSize: 14,
+    color: '#333333',
+  },
+  finalTotalRow: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
 };
 
 const styles = StyleSheet.create({
@@ -457,7 +467,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999999',
     textAlign: 'center'
-  }
+  },
+  ...additionalStyles,
 });
 
 export default UserOrdersScreen;
